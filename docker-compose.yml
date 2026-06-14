@@ -281,6 +281,32 @@ services:
       "
     restart: "no"
 
+  predictor:
+    build:
+      context: ./predictor
+      dockerfile: Dockerfile
+    environment:
+      - DB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-multitenant_db}
+      - MIN_CYCLE_INTERVAL_SEC=${PREDICTOR_CYCLE_SEC:-3600}
+    volumes:
+      - model_data:/models
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   trainer:
     build:
       context: ./trainer

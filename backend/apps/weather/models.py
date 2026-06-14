@@ -67,6 +67,7 @@ class StormAlert(models.Model):
     is_active = models.BooleanField(default=True)
     generated_at = models.DateTimeField(db_index=True)
     model_version = models.CharField(max_length=50, default="")
+    notified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -187,6 +187,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.watchdog.tasks.send_heartbeat_ping",
         "schedule": 30.0,
     },
+    "notify-storm-alerts": {
+        "task": "weather.notify_pending_alerts",
+        "schedule": 600.0,  # cada 10 minutos
+    },
 }
 
 MAX_TENANTS_PER_USER = 5

@@ -86,6 +86,18 @@ const routes = [
                 name: "tenant-settings",
                 component: () => import("@/views/tenants/TenantSettings.vue"),
             },
+            {
+                path: "alertas",
+                name: "storm-alerts",
+                component: () => import("@/views/weather/StormAlerts.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Alertas", order: 1, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
+            },
+            {
+                path: "estaciones",
+                name: "stations",
+                component: () => import("@/views/weather/Stations.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Estaciones", order: 2, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
+            },
         ],
     },
 ];
