@@ -69,6 +69,7 @@ class StormAlert(models.Model):
     model_version = models.CharField(max_length=50, default="")
     notified_at = models.DateTimeField(null=True, blank=True)
     telegram_notified_at = models.DateTimeField(null=True, blank=True)
+    explanation_json = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -100,9 +101,17 @@ class ModelArtifact(models.Model):
     accuracy = models.FloatField(null=True, blank=True)
     precision = models.FloatField(null=True, blank=True)
     recall = models.FloatField(null=True, blank=True)
+    f1 = models.FloatField(null=True, blank=True)
+    roc_auc = models.FloatField(null=True, blank=True)
     loss = models.FloatField(null=True, blank=True)
     epochs_run = models.IntegerField(default=0)
     training_seconds = models.IntegerField(default=0)
+    best_model_type = models.CharField(max_length=20, default="mlp", blank=True)
+    model_type = models.CharField(max_length=20, default="mlp", blank=True)
+    feature_importance_json = models.JSONField(null=True, blank=True)
+    shap_background_path = models.CharField(max_length=255, default="", blank=True)
+    calibrator_path = models.CharField(max_length=255, default="", blank=True)
+    thresholds_json = models.JSONField(null=True, blank=True)
     is_active = models.BooleanField(default=False)
     notes = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -113,6 +122,28 @@ class ModelArtifact(models.Model):
 
     def __str__(self):
         return f"{self.version} [{self.status}] acc={self.accuracy:.3f}" if self.accuracy else f"{self.version} [{self.status}]"
+
+
+class ModelBenchmark(models.Model):
+    artifact = models.ForeignKey(
+        ModelArtifact, on_delete=models.CASCADE, related_name="benchmarks"
+    )
+    model_type = models.CharField(max_length=20)
+    cv_fold = models.IntegerField()
+    accuracy = models.FloatField(default=0)
+    precision = models.FloatField(default=0)
+    recall = models.FloatField(default=0)
+    f1 = models.FloatField(default=0)
+    roc_auc = models.FloatField(default=0)
+    training_seconds = models.FloatField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "model_benchmarks"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.model_type} fold={self.cv_fold} f1={self.f1:.3f}"
 
 
 class TelegramSubscription(models.Model):

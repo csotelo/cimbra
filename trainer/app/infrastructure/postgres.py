@@ -66,7 +66,7 @@ class PostgresAdapter:
         return inserted
 
     def load_dataset(self) -> list[dict]:
-        """Carga todas las observaciones con cape y k_index disponibles."""
+        """Carga todas las observaciones ordenadas cronológicamente."""
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
@@ -96,10 +96,15 @@ class PostgresAdapter:
         return artifact_id
 
     def update_artifact(self, artifact_id: str, **kwargs):
+        """Actualiza campos del artefacto. Serializa dicts/listas a JSON automáticamente."""
         if not kwargs:
             return
-        sets = ", ".join(f"{k} = %s" for k in kwargs)
-        values = list(kwargs.values()) + [artifact_id]
+        processed = {
+            k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
+            for k, v in kwargs.items()
+        }
+        sets = ", ".join(f"{k} = %s" for k in processed)
+        values = list(processed.values()) + [artifact_id]
         with self._conn.cursor() as cur:
             cur.execute(f"UPDATE model_artifacts SET {sets} WHERE id = %s", values)
         self._conn.commit()
@@ -109,4 +114,28 @@ class PostgresAdapter:
         with self._conn.cursor() as cur:
             cur.execute("UPDATE model_artifacts SET is_active = FALSE WHERE is_active = TRUE")
             cur.execute("UPDATE model_artifacts SET is_active = TRUE WHERE id = %s", (artifact_id,))
+        self._conn.commit()
+
+    def save_benchmark(self, artifact_id: str, model_type: str, cv_fold: int, metrics: dict):
+        """Guarda resultado de un fold del benchmark en model_benchmarks."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO model_benchmarks
+                    (artifact_id, model_type, cv_fold, accuracy, precision, recall,
+                     f1, roc_auc, training_seconds, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (
+                    artifact_id,
+                    model_type,
+                    cv_fold,
+                    metrics.get("accuracy", 0),
+                    metrics.get("precision", 0),
+                    metrics.get("recall", 0),
+                    metrics.get("f1", 0),
+                    metrics.get("roc_auc", 0),
+                    metrics.get("training_seconds", 0),
+                ),
+            )
         self._conn.commit()
