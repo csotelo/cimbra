@@ -74,3 +74,40 @@ def prepare_dataset(records: list[dict], scaler_path: str) -> tuple:
 
     logger.info(f"Split — train: {len(X_train)}, val: {len(X_val)}, test: {len(X_test)}")
     return X_train, X_val, X_test, y_train, y_val, y_test, len(X_train), len(X_val), len(X_test)
+
+
+SEQ_LEN = 6  # ventana temporal para LSTM (horas)
+
+
+def walk_forward_splits(X: np.ndarray, y: np.ndarray, n_splits: int = 4) -> list:
+    """
+    Temporal expanding-window cross-validation.
+    Asume X, y ya ordenados cronológicamente.
+    Retorna lista de ((X_tr, y_tr), (X_te, y_te)).
+    """
+    n = len(X)
+    base = int(n * 0.55)
+    step = max(int(n * 0.10), 50)
+    splits = []
+    for i in range(n_splits):
+        train_end = base + i * step
+        test_end = min(train_end + step, n)
+        if train_end >= n or test_end <= train_end:
+            break
+        splits.append(
+            ((X[:train_end], y[:train_end]), (X[train_end:test_end], y[train_end:test_end]))
+        )
+    return splits
+
+
+def create_sequences(X: np.ndarray, y: np.ndarray, seq_len: int = SEQ_LEN) -> tuple:
+    """
+    Crea ventanas temporales para LSTM.
+    X: (n, features) → output Xs: (n-seq_len, seq_len, features)
+    y: label del paso seq_len-ésimo de cada ventana.
+    """
+    Xs, ys = [], []
+    for i in range(len(X) - seq_len):
+        Xs.append(X[i:i + seq_len])
+        ys.append(y[i + seq_len])
+    return np.array(Xs, dtype=np.float32), np.array(ys, dtype=np.float32)
