@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 
 
@@ -77,3 +79,35 @@ class StormAlert(models.Model):
 
     def __str__(self):
         return f"[Nivel {self.alert_level}] {self.station.code} — {self.probability:.0%} @ {self.generated_at:%Y-%m-%d %H:%M}"
+
+
+class ModelArtifact(models.Model):
+    class Status(models.TextChoices):
+        TRAINING = "training", "Entrenando"
+        READY = "ready", "Listo"
+        FAILED = "failed", "Fallido"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    version = models.CharField(max_length=50, unique=True)
+    model_path = models.CharField(max_length=255)
+    scaler_path = models.CharField(max_length=255, default="")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.TRAINING)
+    samples_train = models.IntegerField(default=0)
+    samples_val = models.IntegerField(default=0)
+    samples_test = models.IntegerField(default=0)
+    accuracy = models.FloatField(null=True, blank=True)
+    precision = models.FloatField(null=True, blank=True)
+    recall = models.FloatField(null=True, blank=True)
+    loss = models.FloatField(null=True, blank=True)
+    epochs_run = models.IntegerField(default=0)
+    training_seconds = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=False)
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "model_artifacts"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.version} [{self.status}] acc={self.accuracy:.3f}" if self.accuracy else f"{self.version} [{self.status}]"

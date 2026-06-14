@@ -9,6 +9,7 @@ volumes:
   redis_data:
   pip_cache:
   minio_data:
+  model_data:
 
 services:
   postgres:
@@ -279,6 +280,32 @@ services:
         echo 'MinIO bucket listo.'
       "
     restart: "no"
+
+  trainer:
+    build:
+      context: ./trainer
+      dockerfile: Dockerfile
+    environment:
+      - DB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-multitenant_db}
+      - MODEL_PATH=/models
+    volumes:
+      - model_data:/models
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+          cpus: "2.0"
+    restart: "no"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ingestor:
     build:

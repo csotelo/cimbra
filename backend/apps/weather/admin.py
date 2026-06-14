@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Station, StormAlert, WeatherObservation
+from .models import ModelArtifact, Station, StormAlert, WeatherObservation
 
 
 @admin.register(Station)
@@ -57,4 +57,36 @@ class StormAlertAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ModelArtifact)
+class ModelArtifactAdmin(admin.ModelAdmin):
+    list_display = ["version", "status_badge", "accuracy_pct", "recall_pct", "samples_train", "epochs_run", "training_seconds", "is_active", "created_at"]
+    list_filter = ["status", "is_active"]
+    readonly_fields = ["id", "created_at", "version", "model_path", "scaler_path",
+                       "samples_train", "samples_val", "samples_test",
+                       "accuracy", "precision", "recall", "loss",
+                       "epochs_run", "training_seconds"]
+    ordering = ["-created_at"]
+
+    STATUS_COLORS = {"training": "#6366f1", "ready": "#22c55e", "failed": "#ef4444"}
+
+    @admin.display(description="Estado")
+    def status_badge(self, obj):
+        color = self.STATUS_COLORS.get(obj.status, "#6b7280")
+        return format_html(
+            '<span style="background:{};color:#fff;padding:2px 8px;border-radius:4px;font-weight:600">{}</span>',
+            color, obj.get_status_display(),
+        )
+
+    @admin.display(description="Accuracy")
+    def accuracy_pct(self, obj):
+        return f"{obj.accuracy:.1%}" if obj.accuracy is not None else "—"
+
+    @admin.display(description="Recall")
+    def recall_pct(self, obj):
+        return f"{obj.recall:.1%}" if obj.recall is not None else "—"
+
+    def has_add_permission(self, request):
         return False
