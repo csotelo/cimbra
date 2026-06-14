@@ -1,47 +1,59 @@
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-            <h1 class="text-2xl font-bold text-center mb-6">Create Account</h1>
+    <AuthLayout>
+        <div>
+            <h2 class="text-xl font-semibold mb-1 text-gray-900 dark:text-white">Crear cuenta</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Regístrate para acceder al sistema</p>
 
-            <NotificationBanner v-if="error" type="error" :message="errorMessage" @close="clearError" />
-            <NotificationBanner v-if="success" type="success" message="Registration successful! Please check your email to verify your account." />
+            <div v-if="success"
+                 class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800
+                        flex items-start gap-3 text-sm text-green-700 dark:text-green-400">
+                <svg class="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                </svg>
+                <div>
+                    <p class="font-medium">¡Cuenta creada!</p>
+                    <p class="mt-0.5 opacity-80">Revisa tu correo para verificar tu cuenta.</p>
+                </div>
+            </div>
+
+            <div v-else-if="errorMsg"
+                 class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
+                        flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
+                <svg class="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span>{{ errorMsg }}</span>
+                <button @click="clearError" class="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
+            </div>
 
             <form v-if="!success" @submit.prevent="handleRegister" class="space-y-4">
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">
-                        Email
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Correo electrónico
                     </label>
-                    <input
-                        id="email"
-                        v-model="form.email"
-                        type="email"
-                        required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="you@example.com"
-                    />
-                    <p v-if="errors.email" class="mt-1 text-sm text-red-600">{{ errors.email[0] }}</p>
+                    <input id="email" v-model="form.email" type="email" required autocomplete="email"
+                        placeholder="tucorreo@ejemplo.com"
+                        class="block w-full rounded-lg border-gray-300 dark:border-gray-600
+                               dark:bg-gray-800 dark:text-white dark:placeholder-gray-500
+                               shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors" />
+                    <p v-if="fieldErrors.email" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.email }}</p>
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">
-                        Password
+                    <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Contraseña <span class="text-gray-400 font-normal">(mínimo 8 caracteres)</span>
                     </label>
-                    <div class="relative mt-1">
-                        <input
-                            id="password"
-                            v-model="form.password"
-                            :type="showPassword ? 'text' : 'password'"
-                            required
-                            minlength="8"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-10"
-                        />
-                        <button
-                            type="button"
-                            @click="showPassword = !showPassword"
-                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                            tabindex="-1"
-                        >
-                            <svg v-if="showPassword" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="relative">
+                        <input id="password" v-model="form.password"
+                            :type="showPwd ? 'text' : 'password'"
+                            required minlength="8" autocomplete="new-password"
+                            placeholder="••••••••"
+                            class="block w-full rounded-lg border-gray-300 dark:border-gray-600
+                                   dark:bg-gray-800 dark:text-white dark:placeholder-gray-500
+                                   shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-10 transition-colors" />
+                        <button type="button" @click="showPwd = !showPwd" tabindex="-1"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <svg v-if="showPwd" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21"/>
                             </svg>
                             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,97 +62,84 @@
                             </svg>
                         </button>
                     </div>
-                    <p v-if="errors.password" class="mt-1 text-sm text-red-600">{{ errors.password[0] }}</p>
+                    <p v-if="fieldErrors.password" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.password }}</p>
                 </div>
 
                 <div>
-                    <label for="password_confirm" class="block text-sm font-medium text-gray-700">
-                        Confirm Password
+                    <label for="password_confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Confirmar contraseña
                     </label>
-                    <div class="relative mt-1">
-                        <input
-                            id="password_confirm"
-                            v-model="form.password_confirm"
-                            :type="showPassword ? 'text' : 'password'"
-                            required
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-10"
-                        />
-                    </div>
+                    <input id="password_confirm" v-model="form.password_confirm"
+                        :type="showPwd ? 'text' : 'password'"
+                        required autocomplete="new-password"
+                        placeholder="••••••••"
+                        class="block w-full rounded-lg border-gray-300 dark:border-gray-600
+                               dark:bg-gray-800 dark:text-white dark:placeholder-gray-500
+                               shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm transition-colors" />
+                    <p v-if="fieldErrors.password_confirm" class="mt-1 text-xs text-red-600 dark:text-red-400">{{ fieldErrors.password_confirm }}</p>
                 </div>
 
-                <button
-                    type="submit"
-                    :disabled="loading"
-                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                    {{ loading ? "Creating account..." : "Create Account" }}
+                <button type="submit" :disabled="loading"
+                    class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg
+                           bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800
+                           text-white text-sm font-semibold shadow-sm
+                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                           dark:focus:ring-offset-gray-900
+                           disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+                    <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    {{ loading ? "Creando cuenta..." : "Crear cuenta" }}
                 </button>
             </form>
 
-            <div class="mt-6 text-center text-sm">
-                <router-link
-                    to="/login"
-                    class="font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                    Already have an account? Sign in
+            <p class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                ¿Ya tienes cuenta?
+                <router-link to="/login" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Iniciar sesión
                 </router-link>
-            </div>
+            </p>
         </div>
-    </div>
+    </AuthLayout>
 </template>
 
 <script setup>
-import { reactive, computed, ref } from "vue";
+import { reactive, ref, computed } from "vue";
 import { useAuth } from "@/composables/useAuth";
-import NotificationBanner from "@/components/NotificationBanner.vue";
+import AuthLayout from "@/layouts/AuthLayout.vue";
 
 const { register, loading, error, clearError } = useAuth();
 
-const form = reactive({
-    email: "",
-    password: "",
-    password_confirm: "",
-});
-
-const errors = reactive({});
+const showPwd = ref(false);
 const success = ref(false);
-const showPassword = ref(false);
+const fieldErrors = reactive({});
+const form = reactive({ email: "", password: "", password_confirm: "" });
 
-const errorMessage = computed(() => {
-    if (typeof error.value === "object") {
-        return JSON.stringify(error.value);
-    }
-    return error.value;
+const errorMsg = computed(() => {
+    if (!error.value) return null;
+    if (typeof error.value === "string") return error.value;
+    const first = Object.values(error.value).flat()[0];
+    return first || "Error al crear la cuenta";
 });
 
 function validate() {
-    Object.keys(errors).forEach((key) => delete errors[key]);
-    let valid = true;
-
-    if (form.password !== form.password_confirm) {
-        errors.password_confirm = ["Passwords do not match"];
-        valid = false;
-    }
-
+    Object.keys(fieldErrors).forEach(k => delete fieldErrors[k]);
     if (form.password.length < 8) {
-        errors.password = ["Password must be at least 8 characters"];
-        valid = false;
+        fieldErrors.password = "Mínimo 8 caracteres";
+        return false;
     }
-
-    return valid;
+    if (form.password !== form.password_confirm) {
+        fieldErrors.password_confirm = "Las contraseñas no coinciden";
+        return false;
+    }
+    return true;
 }
 
 async function handleRegister() {
     clearError();
     if (!validate()) return;
-
     const result = await register(form);
-    if (result) {
-        success.value = true;
-    }
+    if (result) success.value = true;
 }
-</script>
-
-<script>
-export default { name: "RegisterView" };
 </script>

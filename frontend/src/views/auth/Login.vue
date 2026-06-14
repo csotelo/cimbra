@@ -1,44 +1,54 @@
 <template>
-    <div class="min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-            <h1 class="text-2xl font-bold text-center mb-6">Sign In</h1>
+    <AuthLayout>
+        <div>
+            <h2 class="text-xl font-semibold mb-1 text-gray-900 dark:text-white">Bienvenido de vuelta</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Ingresa tus credenciales para continuar</p>
 
-            <NotificationBanner v-if="error" type="error" :message="error" @close="clearError" />
+            <div v-if="error"
+                 class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
+                        flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
+                <svg class="w-4 h-4 mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                </svg>
+                <span>{{ error }}</span>
+                <button @click="clearError" class="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
+            </div>
 
             <form @submit.prevent="handleLogin" class="space-y-4">
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">
-                        Email
+                    <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Correo electrónico
                     </label>
-                    <input
-                        id="email"
-                        v-model="form.email"
-                        type="email"
-                        required
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        placeholder="you@example.com"
-                    />
+                    <input id="email" v-model="form.email" type="email" required autocomplete="email"
+                        placeholder="tucorreo@ejemplo.com"
+                        class="block w-full rounded-lg border-gray-300 dark:border-gray-600
+                               dark:bg-gray-800 dark:text-white dark:placeholder-gray-500
+                               shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm
+                               transition-colors" />
                 </div>
 
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700">
-                        Password
-                    </label>
-                    <div class="relative mt-1">
-                        <input
-                            id="password"
-                            v-model="form.password"
-                            :type="showPassword ? 'text' : 'password'"
-                            required
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-10"
-                        />
-                        <button
-                            type="button"
-                            @click="showPassword = !showPassword"
-                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
-                            tabindex="-1"
-                        >
-                            <svg v-if="showPassword" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="flex items-center justify-between mb-1">
+                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                            Contraseña
+                        </label>
+                        <router-link to="/forgot-password"
+                            class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline">
+                            ¿Olvidaste tu contraseña?
+                        </router-link>
+                    </div>
+                    <div class="relative">
+                        <input id="password" v-model="form.password"
+                            :type="showPwd ? 'text' : 'password'"
+                            required autocomplete="current-password"
+                            placeholder="••••••••"
+                            class="block w-full rounded-lg border-gray-300 dark:border-gray-600
+                                   dark:bg-gray-800 dark:text-white dark:placeholder-gray-500
+                                   shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-10
+                                   transition-colors" />
+                        <button type="button" @click="showPwd = !showPwd" tabindex="-1"
+                            class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <svg v-if="showPwd" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 4.411m0 0L21 21"/>
                             </svg>
                             <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -49,57 +59,48 @@
                     </div>
                 </div>
 
-                <button
-                    type="submit"
-                    :disabled="loading"
-                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                    {{ loading ? "Iniciando sesión..." : "Iniciar sesión" }}
+                <button type="submit" :disabled="loading"
+                    class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg
+                           bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800
+                           text-white text-sm font-semibold shadow-sm
+                           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                           dark:focus:ring-offset-gray-900
+                           disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
+                    <svg v-if="loading" class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                    {{ loading ? "Ingresando..." : "Ingresar" }}
                 </button>
             </form>
 
-            <div class="mt-6 text-center text-sm">
-                <router-link
-                    to="/register"
-                    class="font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                    Don't have an account? Sign up
+            <p v-if="allowRegister" class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                ¿No tienes cuenta?
+                <router-link to="/register" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Crear cuenta
                 </router-link>
-            </div>
-
-            <div class="mt-4 text-center text-sm">
-                <router-link
-                    to="/forgot-password"
-                    class="font-medium text-gray-600 hover:text-gray-500"
-                >
-                    Forgot your password?
-                </router-link>
-            </div>
+            </p>
         </div>
-    </div>
+    </AuthLayout>
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
-
+import { reactive, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
-import NotificationBanner from "@/components/NotificationBanner.vue";
+import { useConfigStore } from "@/stores/config";
+import AuthLayout from "@/layouts/AuthLayout.vue";
 
 const router = useRouter();
 const { login, loading, error, clearError } = useAuth();
+const configStore = useConfigStore();
+const allowRegister = computed(() => configStore.allowSelfRegistration);
 
-const showPassword = ref(false);
-
-const form = reactive({
-    email: "",
-    password: "",
-});
+const showPwd = ref(false);
+const form = reactive({ email: "", password: "" });
 
 async function handleLogin() {
     const success = await login(form.email, form.password);
-    if (success) {
-        router.push("/dashboard");
-    }
+    if (success) router.push("/dashboard");
 }
 </script>
