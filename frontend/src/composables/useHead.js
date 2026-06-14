@@ -8,6 +8,7 @@ import { useConfigStore } from "@/stores/config";
 
 const ROUTE_TITLES = {
     dashboard: "Dashboard",
+    "station-map": "Mapa de Alertas",
     "storm-alerts": "Alertas de Tormenta",
     stations: "Estaciones",
     "telegram-subscriptions": "Suscripciones Telegram",

@@ -1,12 +1,25 @@
 from rest_framework import serializers
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
 from .models import ModelArtifact, Station, StormAlert, TelegramSubscription, WeatherObservation
 
 
 class StationSerializer(serializers.ModelSerializer):
+    latitude = serializers.ReadOnlyField()
+    longitude = serializers.ReadOnlyField()
+
     class Meta:
         model = Station
         fields = ["id", "code", "name", "department", "latitude", "longitude", "altitude_m", "is_active"]
+
+
+class StationGeoSerializer(GeoFeatureModelSerializer):
+    """GeoJSON FeatureCollection de estaciones para el mapa Leaflet."""
+
+    class Meta:
+        model = Station
+        geo_field = "location"
+        fields = ["id", "code", "name", "department", "altitude_m", "is_active"]
 
 
 class WeatherObservationSerializer(serializers.ModelSerializer):

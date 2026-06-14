@@ -6,11 +6,17 @@ from .models import ModelArtifact, Station, StormAlert, TelegramSubscription, We
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):
-    list_display = ["code", "name", "department", "latitude", "longitude", "altitude_m", "is_active"]
+    list_display = ["code", "name", "department", "coords", "altitude_m", "is_active"]
     list_filter = ["department", "is_active"]
     search_fields = ["code", "name", "department"]
     list_editable = ["is_active"]
     ordering = ["department", "name"]
+
+    @admin.display(description="Coordenadas (lat, lon)")
+    def coords(self, obj):
+        if obj.location:
+            return f"{obj.location.y:.4f}, {obj.location.x:.4f}"
+        return "—"
 
 
 @admin.register(WeatherObservation)

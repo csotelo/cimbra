@@ -26,7 +26,10 @@ class PostgresAdapter:
     def get_active_stations(self) -> list[dict]:
         with self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                "SELECT id, code, latitude, longitude FROM weather_stations WHERE is_active = TRUE"
+                "SELECT id, code, "
+                "ST_Y(location::geometry) AS latitude, "
+                "ST_X(location::geometry) AS longitude "
+                "FROM weather_stations WHERE is_active = TRUE"
             )
             return [dict(r) for r in cur.fetchall()]
 

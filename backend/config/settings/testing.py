@@ -43,4 +43,5 @@ MIGRATION_MODULES = {
     "contenttypes": None,
     "sessions": None,
     "django_celery_beat": None,
+    "weather": None,
 }

@@ -20,6 +20,7 @@ channels-redis==4.2.1
 
 # Database
 psycopg2-binary==2.9.10
+djangorestframework-gis==1.1
 
 # Redis
 redis==5.2.1

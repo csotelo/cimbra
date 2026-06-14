@@ -1,14 +1,13 @@
 import uuid
 
-from django.db import models
+from django.contrib.gis.db import models
 
 
 class Station(models.Model):
     code = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
     department = models.CharField(max_length=100)
-    latitude = models.DecimalField(max_digits=9, decimal_places=6)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6)
+    location = models.PointField(geography=True, srid=4326)
     altitude_m = models.IntegerField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -19,6 +18,14 @@ class Station(models.Model):
 
     def __str__(self):
         return f"{self.code} — {self.name} ({self.department})"
+
+    @property
+    def latitude(self):
+        return self.location.y if self.location else None
+
+    @property
+    def longitude(self):
+        return self.location.x if self.location else None
 
 
 class WeatherObservation(models.Model):
