@@ -104,6 +104,18 @@ const routes = [
                 component: () => import("@/views/weather/TelegramSubscriptions.vue"),
                 meta: { requiresAuth: true, requiresAdmin: true, menu: true, label: "Telegram", order: 3, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
             },
+            {
+                path: "configuracion",
+                name: "site-settings",
+                component: () => import("@/views/admin/SiteSettings.vue"),
+                meta: { requiresAuth: true, requiresAdmin: true, menu: true, label: "Configuración Sitio", order: 1, group: "admin", groupLabel: "Administración", groupOrder: 99 },
+            },
+            {
+                path: "usuarios",
+                name: "user-management",
+                component: () => import("@/views/admin/UserManagement.vue"),
+                meta: { requiresAuth: true, requiresAdmin: true, menu: true, label: "Usuarios", order: 2, group: "admin", groupLabel: "Administración", groupOrder: 99 },
+            },
         ],
     },
 ];

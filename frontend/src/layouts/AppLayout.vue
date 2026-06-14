@@ -161,12 +161,14 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import { useNotifications } from "@/composables/useNotifications";
 import { useConfigStore } from "@/stores/config";
+import { useHead } from "@/composables/useHead";
 import NotificationBell from "@/components/NotificationBell.vue";
 import ToastContainer from "@/components/ToastContainer.vue";
 
 const { user, logout } = useAuth();
 const configStore = useConfigStore();
 const singleTenantMode = computed(() => configStore.singleTenantMode);
+useHead();
 
 // --- sidebar colapsable ---
 const sidebarOpen = ref(localStorage.getItem("sidebar_open") !== "false");

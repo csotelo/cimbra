@@ -4,6 +4,16 @@
             <h2 class="text-xl font-semibold mb-1 text-gray-900 dark:text-white">Crear cuenta</h2>
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Regístrate para acceder al sistema</p>
 
+            <!-- Registro deshabilitado -->
+            <div v-if="!configStore.allowSelfRegistration"
+                 class="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800
+                        text-sm text-amber-800 dark:text-amber-400 mb-4">
+                <p class="font-medium mb-1">Registro no disponible</p>
+                <p class="opacity-80">
+                    El registro de nuevos usuarios está deshabilitado. Solicita una invitación al administrador del sistema.
+                </p>
+            </div>
+
             <div v-if="success"
                  class="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800
                         flex items-start gap-3 text-sm text-green-700 dark:text-green-400">
@@ -26,7 +36,7 @@
                 <button @click="clearError" class="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
             </div>
 
-            <form v-if="!success" @submit.prevent="handleRegister" class="space-y-4">
+            <form v-if="!success && configStore.allowSelfRegistration" @submit.prevent="handleRegister" class="space-y-4">
                 <div>
                     <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Correo electrónico
@@ -107,7 +117,10 @@
 <script setup>
 import { reactive, ref, computed } from "vue";
 import { useAuth } from "@/composables/useAuth";
+import { useConfigStore } from "@/stores/config";
 import AuthLayout from "@/layouts/AuthLayout.vue";
+
+const configStore = useConfigStore();
 
 const { register, loading, error, clearError } = useAuth();
 

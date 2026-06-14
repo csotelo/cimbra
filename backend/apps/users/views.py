@@ -444,6 +444,101 @@ class SelectTenantView(APIView):
             )
 
 
+class UserListView(APIView):
+    """GET /api/users/list/ — lista de usuarios (solo superuser).
+    PATCH /api/users/<id>/toggle/ — activar/desactivar usuario.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _require_superuser(self, request):
+        if not request.user.is_superuser:
+            return Response({"detail": "Acceso denegado."}, status=status.HTTP_403_FORBIDDEN)
+        return None
+
+    def get(self, request):
+        err = self._require_superuser(request)
+        if err:
+            return err
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        users = User.objects.all().order_by("-date_joined")
+        data = [
+            {
+                "id": str(u.id) if hasattr(u, "uuid") else u.pk,
+                "email": u.email,
+                "is_active": u.is_active,
+                "is_superuser": u.is_superuser,
+                "is_email_verified": u.is_email_verified,
+                "date_joined": u.date_joined.isoformat(),
+            }
+            for u in users
+        ]
+        return Response({"results": data, "count": len(data)})
+
+
+class UserToggleView(APIView):
+    """PATCH /api/users/<pk>/toggle/ — activar/desactivar usuario (superuser)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        if not request.user.is_superuser:
+            return Response({"detail": "Acceso denegado."}, status=status.HTTP_403_FORBIDDEN)
+        from django.contrib.auth import get_user_model
+        from django.shortcuts import get_object_or_404
+        User = get_user_model()
+        user = get_object_or_404(User, pk=pk)
+        if user == request.user:
+            return Response({"detail": "No puedes desactivarte a ti mismo."}, status=status.HTTP_400_BAD_REQUEST)
+        user.is_active = not user.is_active
+        user.save(update_fields=["is_active"])
+        return Response({"id": str(pk), "is_active": user.is_active})
+
+
+class InvitationListView(APIView):
+    """GET /api/users/invitations/list/ — lista de invitaciones (superuser)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not request.user.is_superuser:
+            return Response({"detail": "Acceso denegado."}, status=status.HTTP_403_FORBIDDEN)
+        from apps.users.models import Invitation
+        from django.utils import timezone
+        invitations = Invitation.objects.select_related("invited_by").order_by("-created_at")
+        now = timezone.now()
+        data = [
+            {
+                "id": str(i.id),
+                "email": i.email,
+                "status": (
+                    "accepted" if i.accepted_at
+                    else ("expired" if now > i.expires_at else "pending")
+                ),
+                "accepted_at": i.accepted_at.isoformat() if i.accepted_at else None,
+                "expires_at": i.expires_at.isoformat(),
+                "created_at": i.created_at.isoformat(),
+                "invited_by": i.invited_by.email if i.invited_by else None,
+            }
+            for i in invitations
+        ]
+        return Response({"results": data, "count": len(data)})
+
+    def delete(self, request):
+        """DELETE /api/users/invitations/list/?id=<uuid> — cancelar invitación."""
+        if not request.user.is_superuser:
+            return Response({"detail": "Acceso denegado."}, status=status.HTTP_403_FORBIDDEN)
+        inv_id = request.query_params.get("id")
+        if not inv_id:
+            return Response({"detail": "id requerido."}, status=status.HTTP_400_BAD_REQUEST)
+        from apps.users.models import Invitation
+        from django.shortcuts import get_object_or_404
+        inv = get_object_or_404(Invitation, id=inv_id, accepted_at__isnull=True)
+        inv.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class InvitationCreateView(APIView):
     """Create and send an invitation email.
 
