@@ -13,6 +13,18 @@ admin.site.site_title = "Ximbra Admin"
 admin.site.index_title = "Panel de administración"
 
 
+def health(request):
+    """Healthcheck real: verifica DB y devuelve estado de la aplicación."""
+    from django.db import connection
+    try:
+        connection.ensure_connection()
+        db_ok = True
+    except Exception:
+        db_ok = False
+    status = 200 if db_ok else 503
+    return JsonResponse({"status": "ok" if db_ok else "degraded", "db": db_ok}, status=status)
+
+
 def robots_txt(request):
     """robots.txt dinámico — lee allow_indexing de SiteConfig."""
     allow = False
@@ -63,6 +75,7 @@ def system_config(request):
 
 
 urlpatterns = [
+    path("health/", health),
     path("robots.txt", robots_txt),
     path("api/config/", system_config),
     path("api/config/site/", include("core.urls")),

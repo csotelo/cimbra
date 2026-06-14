@@ -36,10 +36,31 @@
             </span>
         </div>
 
+        <!-- Error state -->
+        <div v-if="loadError"
+             class="mb-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
+                    flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            Error al cargar datos del mapa. Reintentando automáticamente...
+        </div>
+
         <!-- Mapa -->
-        <div ref="mapContainer"
-             class="flex-1 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm"
+        <div class="relative flex-1 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm"
              style="min-height: 480px;">
+            <div ref="mapContainer" class="absolute inset-0"></div>
+            <!-- Empty state sobre el mapa -->
+            <div v-if="emptyStations && !loading"
+                 class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-gray-900/80 z-10">
+                <div class="text-center">
+                    <svg class="w-10 h-10 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+                    </svg>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Sin estaciones registradas.</p>
+                    <p class="text-xs text-gray-400 mt-1">Ejecuta <code class="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">seed_stations</code> en Django.</p>
+                </div>
+            </div>
         </div>
 
         <!-- Estadísticas por nivel -->
@@ -62,11 +83,14 @@ import { api } from "@/api/index";
 
 const mapContainer = ref(null);
 const loading = ref(false);
+const loadError = ref(false);
+const emptyStations = ref(false);
 const lastUpdated = ref(null);
 
 let map = null;
 let alertLayer = null;
 let stationLayer = null;
+let consecutiveErrors = 0;
 
 const levels = [
     { value: 1, label: "Verde — Sin riesgo",   color: "#22c55e" },
@@ -165,24 +189,38 @@ async function refresh() {
         ]);
         renderStations(stationsRes.data);
         renderAlerts(alertsRes.data);
+        emptyStations.value = (stationsRes.data?.features?.length ?? 0) === 0;
         lastUpdated.value = new Date().toLocaleTimeString("es-PE");
+        loadError.value = false;
+        consecutiveErrors = 0;
     } catch (e) {
+        consecutiveErrors++;
+        loadError.value = true;
         console.error("Error cargando datos del mapa:", e);
     } finally {
         loading.value = false;
     }
 }
 
-let interval = null;
+let refreshTimeout = null;
+
+function scheduleNext() {
+    const base = 5 * 60 * 1000;
+    const delay = Math.min(base * Math.pow(2, consecutiveErrors), 20 * 60 * 1000);
+    refreshTimeout = setTimeout(async () => {
+        await refresh();
+        scheduleNext();
+    }, delay);
+}
 
 onMounted(async () => {
     initMap();
     await refresh();
-    interval = setInterval(refresh, 5 * 60 * 1000);
+    scheduleNext();
 });
 
 onUnmounted(() => {
-    clearInterval(interval);
+    clearTimeout(refreshTimeout);
     if (map) map.remove();
 });
 </script>

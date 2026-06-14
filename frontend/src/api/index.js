@@ -7,6 +7,7 @@ const api = axios.create({
         "Content-Type": "application/json",
     },
     withCredentials: true,
+    timeout: 15000,
 });
 
 let isRefreshing = false;
@@ -62,4 +63,5 @@ api.interceptors.response.use(
     }
 );
 
+export { api };
 export default api;

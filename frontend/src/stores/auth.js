@@ -30,7 +30,7 @@ export const useAuthStore = defineStore("auth", () => {
 
             return true;
         } catch (err) {
-            error.value = err.response?.data?.detail || "Login failed";
+            error.value = err.response?.data?.detail || "Correo o contraseña incorrectos.";
             return false;
         } finally {
             loading.value = false;
@@ -44,7 +44,7 @@ export const useAuthStore = defineStore("auth", () => {
             await authApi.register(data);
             return true;
         } catch (err) {
-            error.value = err.response?.data || "Registration failed";
+            error.value = err.response?.data || "Error al crear la cuenta.";
             return false;
         } finally {
             loading.value = false;
@@ -58,7 +58,7 @@ export const useAuthStore = defineStore("auth", () => {
             await authApi.verifyEmail(token);
             return true;
         } catch (err) {
-            error.value = err.response?.data?.detail || "Verification failed";
+            error.value = err.response?.data?.detail || "El enlace de verificación no es válido o ha expirado.";
             return false;
         } finally {
             loading.value = false;
@@ -72,7 +72,7 @@ export const useAuthStore = defineStore("auth", () => {
             await authApi.forgotPassword(email);
             return true;
         } catch (err) {
-            error.value = err.response?.data?.detail || "Request failed";
+            error.value = err.response?.data?.detail || "Error al enviar el correo de recuperación.";
             return false;
         } finally {
             loading.value = false;
@@ -86,7 +86,7 @@ export const useAuthStore = defineStore("auth", () => {
             await authApi.resetPassword(token, password);
             return true;
         } catch (err) {
-            error.value = err.response?.data?.detail || "Reset failed";
+            error.value = err.response?.data?.detail || "El enlace de recuperación no es válido o ha expirado.";
             return false;
         } finally {
             loading.value = false;
@@ -100,7 +100,7 @@ export const useAuthStore = defineStore("auth", () => {
             await authApi.changePassword(data);
             return true;
         } catch (err) {
-            error.value = err.response?.data?.detail || "Change password failed";
+            error.value = err.response?.data?.detail || "Error al cambiar la contraseña.";
             return false;
         } finally {
             loading.value = false;
@@ -113,7 +113,7 @@ export const useAuthStore = defineStore("auth", () => {
             currentTenant.value = tenants.value.find((t) => t.id === tenantId);
             return true;
         } catch (err) {
-            error.value = "Failed to select tenant";
+            error.value = "Error al seleccionar la organización.";
             return false;
         }
     }
@@ -123,7 +123,7 @@ export const useAuthStore = defineStore("auth", () => {
             const response = await authApi.getProfile();
             user.value = response.data;
         } catch (err) {
-            console.error("Failed to fetch profile:", err);
+            console.error("Error al cargar el perfil:", err);
             user.value = null;
             throw err;
         }
@@ -137,7 +137,7 @@ export const useAuthStore = defineStore("auth", () => {
         try {
             await authApi.logout();
         } catch (err) {
-            console.error("Logout error:", err);
+            console.error("Error al cerrar sesión:", err);
         }
         router.push("/login");
     }

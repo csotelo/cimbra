@@ -8,6 +8,7 @@ Variables requeridas por el modelo NN de la tesis:
 - K-Index             → calculado de T y HR a 850/700/500 hPa
 """
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -42,8 +43,10 @@ def _k_index(t850: Optional[float], t700: Optional[float], t500: Optional[float]
     return (t850 - t500) + td850 - (t700 - td700)
 
 
-def fetch_observations(lat: float, lon: float) -> list[dict]:
-    """Descarga observaciones horarias de las últimas 24h + próximas 24h."""
+def fetch_observations(lat: float, lon: float, max_retries: int = 3) -> list[dict]:
+    """Descarga observaciones horarias de las últimas 24h + próximas 24h.
+    Reintenta hasta max_retries veces con backoff exponencial ante 429/5xx.
+    """
     params = {
         "latitude": lat,
         "longitude": lon,
@@ -52,11 +55,30 @@ def fetch_observations(lat: float, lon: float) -> list[dict]:
         "past_days": 1,
         "forecast_days": 1,
     }
-    try:
-        resp = httpx.get(BASE_URL, params=params, timeout=30)
-        resp.raise_for_status()
-    except httpx.HTTPError as exc:
-        logger.error(f"Open-Meteo error ({lat},{lon}): {exc}")
+    delay = 5
+    resp = None
+    for attempt in range(max_retries):
+        try:
+            resp = httpx.get(BASE_URL, params=params, timeout=30)
+            resp.raise_for_status()
+            break
+        except httpx.HTTPStatusError as exc:
+            code = exc.response.status_code
+            if code in (429, 500, 502, 503) and attempt < max_retries - 1:
+                logger.warning(
+                    f"Open-Meteo HTTP {code} ({lat},{lon}), intento {attempt + 1}/{max_retries}, "
+                    f"reintento en {delay}s"
+                )
+                time.sleep(delay)
+                delay *= 2
+            else:
+                logger.error(f"Open-Meteo HTTP {code} ({lat},{lon}): {exc}")
+                return []
+        except httpx.HTTPError as exc:
+            logger.error(f"Open-Meteo error de red ({lat},{lon}): {exc}")
+            return []
+    else:
+        logger.error(f"Open-Meteo: {max_retries} intentos fallidos para ({lat},{lon})")
         return []
 
     data = resp.json()

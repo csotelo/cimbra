@@ -1,6 +1,7 @@
 import json
 
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -15,6 +16,12 @@ from .serializers import (
 )
 
 
+class StandardPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+
 class StationListView(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StationSerializer
@@ -24,25 +31,27 @@ class StationListView(ListAPIView):
 class ObservationListView(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = WeatherObservationSerializer
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         qs = WeatherObservation.objects.select_related("station").order_by("-observed_at")
         station = self.request.query_params.get("station")
         if station:
             qs = qs.filter(station__code=station)
-        return qs[:200]
+        return qs
 
 
 class AlertListView(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = StormAlertSerializer
+    pagination_class = StandardPagination
 
     def get_queryset(self):
         qs = StormAlert.objects.select_related("station").filter(is_active=True).order_by("-generated_at")
         level = self.request.query_params.get("level")
         if level:
             qs = qs.filter(alert_level=level)
-        return qs[:100]
+        return qs
 
 
 class TelegramSubscriptionListView(ListAPIView):

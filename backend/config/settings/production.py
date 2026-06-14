@@ -11,6 +11,11 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("DJANGO_SECRET_KEY must be set in production")
 
+_fastapi_secret = os.environ.get("FASTAPI_SECRET_KEY")
+if not _fastapi_secret:
+    raise ValueError("FASTAPI_SECRET_KEY must be set in production")
+JWT_API_TOKEN_SECRET = _fastapi_secret
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get("ALLOWED_HOSTS", "").split(",")

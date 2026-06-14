@@ -126,7 +126,11 @@ class PredictUseCase:
             return
 
         if artifact["version"] != self._model_version:
-            self._load_model(artifact)
+            try:
+                self._load_model(artifact)
+            except (FileNotFoundError, OSError) as exc:
+                logger.error(f"Modelo no disponible, saltando ciclo: {exc}")
+                return
 
         stations = self._db.get_active_stations()
         if not stations:

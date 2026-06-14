@@ -4,9 +4,13 @@ from django.db import migrations
 
 
 def create_default_admin(apps, schema_editor):
+    email = os.environ.get("DEFAULT_ADMIN_EMAIL")
+    password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+    if not email or not password:
+        # Requiere DEFAULT_ADMIN_EMAIL y DEFAULT_ADMIN_PASSWORD en .env
+        # Sin ellas no se crea ningún superusuario — usa manage.py createsuperuser
+        return
     User = apps.get_model("users", "CustomUser")
-    email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@ximbra.local")
-    password = os.environ.get("DEFAULT_ADMIN_PASSWORD", "P4ssw0rd!")
     if not User.objects.filter(is_superuser=True).exists():
         User.objects.create(
             email=email,

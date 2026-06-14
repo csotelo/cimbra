@@ -18,9 +18,19 @@
             </div>
         </div>
 
+        <!-- Error state -->
+        <div v-if="loadError"
+             class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
+                    flex items-center gap-2 text-sm text-red-700 dark:text-red-400">
+            <svg class="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            Error al cargar alertas. Reintentando automáticamente...
+        </div>
+
         <!-- Tabla de alertas activas -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <div v-if="loading" class="p-8 text-center text-gray-500">Cargando alertas...</div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden" :class="loading ? 'opacity-60' : ''">
+            <div v-if="loading && !alerts.length" class="p-8 text-center text-gray-500">Cargando alertas...</div>
             <div v-else-if="!alerts.length" class="p-8 text-center text-gray-500">
                 Sin alertas activas. El predictor generará alertas en el próximo ciclo.
             </div>
@@ -73,8 +83,10 @@ import { api } from "@/api/index";
 
 const alerts = ref([]);
 const loading = ref(false);
+const loadError = ref(false);
 const lastUpdated = ref(null);
 let interval = null;
+let consecutiveErrors = 0;
 
 const levels = [
     { value: 1, label: "Verde", color: "#22c55e" },
@@ -104,17 +116,31 @@ async function load() {
         const res = await api.get("/api/weather/alerts/");
         alerts.value = res.data.results ?? res.data;
         lastUpdated.value = new Date().toISOString();
+        loadError.value = false;
+        consecutiveErrors = 0;
     } catch (e) {
+        consecutiveErrors++;
+        loadError.value = true;
         console.error("Error cargando alertas:", e);
     } finally {
         loading.value = false;
     }
 }
 
-onMounted(() => {
-    load();
-    interval = setInterval(load, 5 * 60 * 1000); // refresca cada 5 min
+function scheduleNext() {
+    // Backoff exponencial: 5min → 10min → 20min (máx 20min)
+    const base = 5 * 60 * 1000;
+    const delay = Math.min(base * Math.pow(2, consecutiveErrors), 20 * 60 * 1000);
+    interval = setTimeout(async () => {
+        await load();
+        scheduleNext();
+    }, delay);
+}
+
+onMounted(async () => {
+    await load();
+    scheduleNext();
 });
 
-onUnmounted(() => clearInterval(interval));
+onUnmounted(() => clearTimeout(interval));
 </script>
