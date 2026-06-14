@@ -1,0 +1,15 @@
+Verify your email address
+====================
+
+Hello {{ user_email }},
+
+Thank you for registering. Please click the link below to verify your email address:
+
+{{ verify_url }}
+
+This link will expire in 24 hours.
+
+If you didn't create an account, please ignore this email.
+
+Best regards,
+The {{ frontend_url }} Team

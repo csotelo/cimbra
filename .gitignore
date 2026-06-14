@@ -1,0 +1,58 @@
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Django ─────────────────────────────────────────────────────────────────────
+staticfiles/
+media/
+*.log
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+.env.local
+.env.production
+.env.staging
+
+# ── Environment — keep .env.example, ignore actual secrets ────────────────────
+.env
+!.env.example
+
+# ── Django local settings (project-specific overrides, never committed) ────────
+backend/config/settings/local.py
+
+# ── Node / Vue ─────────────────────────────────────────────────────────────────
+node_modules/
+dist/
+frontend/dist/
+.npm/
+*.local
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── IDE ────────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── ATDD pipeline (internal tooling — not part of the boilerplate) ─────────────
+.atdd/

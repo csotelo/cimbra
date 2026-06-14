@@ -1,0 +1,10 @@
+"""Settings for Vigilo modules — copy to modules.py and activate with:
+DJANGO_SETTINGS_MODULE=config.settings.modules
+"""
+
+from .base import *  # noqa
+
+INSTALLED_APPS += [
+    # "apps.sunat",
+    # "apps.sunafil",
+]

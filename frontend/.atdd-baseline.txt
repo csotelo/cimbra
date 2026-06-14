@@ -1,0 +1,674 @@
+
+ RUN  v4.1.8 /home/csotelo/Development/ventures/corebase/frontend
+
+ × src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /dashboard tras logout redirige al login 1559ms
+   → expected 'dashboard' to be 'login' // Object.is equality
+ ✓ src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /login tras logout no redirige al dashboard 143ms
+ × src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /profile tras logout con rol owner redirige al login 198ms
+   → expected 'profile' to be 'login' // Object.is equality
+ × src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /tenants/:id tras logout con rol admin redirige al login 394ms
+   → expected 'tenant-detail' to be 'login' // Object.is equality
+ × src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /tenants/:id/settings tras logout con rol member redirige al login 125ms
+   → expected 'tenant-settings' to be 'login' // Object.is equality
+ ✓ src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > api tiene al menos un interceptor de respuesta registrado 377ms
+ × src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > interceptor llama POST /api/users/refresh/ cuando un endpoint retorna 401 211ms
+   → Network Error
+ × src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > interceptor retoca el request original después de un refresh exitoso 33ms
+   → Network Error
+ ✓ src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > interceptor redirige a /login cuando el refresh también falla 16ms
+ × src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA01/CA03: Login.vue — el botón de submit dice 'Iniciar sesión' 90ms
+   → Login.vue debe contener 'Iniciar sesión' en el botón de submit: expected '<template>\n    <div class="min-h-scr…' to contain 'Iniciar sesión'
+ × src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA01: Login.vue — el estado de loading del botón dice 'Iniciando sesión...' 27ms
+   → Login.vue debe mostrar 'Iniciando sesión...' durante el loading: expected '<template>\n    <div class="min-h-scr…' to contain 'Iniciando sesión...'
+ × src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA05: Dashboard.vue — el botón de logout dice 'Cerrar sesión' 34ms
+   → Dashboard.vue debe contener 'Cerrar sesión' en el botón de logout: expected '<template>\n    <div class="min-h-scr…' to contain 'Cerrar sesión'
+ × src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA02: Dashboard.vue — existe un elemento raíz con clase CSS 'dashboard' 14ms
+   → Dashboard.vue debe tener un elemento con class='dashboard' (o que la incluya): expected '<template>\n    <div class="min-h-scr…' to match /class="[^"]*\bdashboard\b[^"]*"/
+ ✓ src/router/__tests__/integration/login-sin-tenant.spec.js > US14 — login sin tenants no produce redirect loop (integration) > login sin tenants navega a /dashboard sin redirect loop 966ms
+ ✓ src/router/__tests__/integration/login-sin-tenant.spec.js > US14 — login sin tenants no produce redirect loop (integration) > login sin tenants permite acceder a /profile sin bloqueo 37ms
+ ✓ src/router/__tests__/integration/login-sin-tenant.spec.js > US14 — login sin tenants no produce redirect loop (integration) > login con tenants sigue navegando a /dashboard sin regresión 32ms
+ ✓ src/router/__tests__/integration/login-sin-tenant.spec.js > US14 — login sin tenants no produce redirect loop (integration) > guard de ruta guest /login no redirige al dashboard durante el login 21ms
+ ✓ src/router/__tests__/integration/auth-guards-us07.spec.js > US07 — guards del router — CA03/CA04 > CA03: /dashboard sin sesión redirige a /login 511ms
+ ✓ src/router/__tests__/integration/auth-guards-us07.spec.js > US07 — guards del router — CA03/CA04 > CA03: /profile sin sesión redirige a /login 27ms
+ ✓ src/router/__tests__/integration/auth-guards-us07.spec.js > US07 — guards del router — CA03/CA04 > CA04: /login con sesión activa redirige a /dashboard (meta: guest) 64ms
+ ✓ src/router/__tests__/integration/auth-guards-us07.spec.js > US07 — guards del router — CA03/CA04 > CA04: /profile con sesión activa es accesible y no redirige a /login 43ms
+ ✓ src/router/__tests__/unit/login-sin-tenant.spec.js > US14 — checkAuth() fast-path con cache stale (unit) > fast-path no modifica router._authCheckPromise cuando user está seteado 646ms
+ ✓ src/router/__tests__/unit/login-sin-tenant.spec.js > US14 — checkAuth() fast-path con cache stale (unit) > permite navegar a /profile cuando user está seteado aunque el cache diga false 32ms
+ ✓ src/router/__tests__/unit/login-sin-tenant.spec.js > US14 — checkAuth() fast-path con cache stale (unit) > redirige a /login cuando user es null y fetchProfile falla (caso base correcto) 32ms
+ ✓ src/router/__tests__/integration/redirect-raiz.spec.js > US11 — navegación a '/' (integration) > navegar a '/' con sesión activa redirige a /dashboard 527ms
+ ✓ src/router/__tests__/integration/redirect-raiz.spec.js > US11 — navegación a '/' (integration) > navegar a '/' sin sesión redirige a /login 29ms
+ ✓ src/router/__tests__/unit/redirect-raiz.spec.js > US11 — configuración de la ruta raíz (unit) > la ruta '/' define redirect en lugar de component 468ms
+ ✓ src/router/__tests__/unit/redirect-raiz.spec.js > US11 — configuración de la ruta raíz (unit) > redirect de '/' retorna { name: 'dashboard' } cuando hay sesión activa 24ms
+ ✓ src/router/__tests__/unit/redirect-raiz.spec.js > US11 — configuración de la ruta raíz (unit) > redirect de '/' retorna { name: 'login' } cuando no hay sesión 16ms
+ ✓ src/stores/__tests__/unit/auth-login.spec.js > US07 — authStore.login() — CA01/CA02 > CA01: login() retorna true y setea user con credenciales válidas 103ms
+ ✓ src/stores/__tests__/unit/auth-login.spec.js > US07 — authStore.login() — CA01/CA02 > CA01: login() retorna false y setea error con credenciales inválidas 25ms
+ ✓ src/stores/__tests__/unit/auth-login.spec.js > US07 — authStore.login() — CA01/CA02 > CA02: login() popula tenants desde tenant_list del response 27ms
+ ✓ src/stores/__tests__/unit/auth-login.spec.js > US07 — authStore.login() — CA01/CA02 > CA02: login() setea currentTenant al primer tenant del response 22ms
+ ✓ src/stores/__tests__/unit/login-sin-tenant.spec.js > US14 — useAuthStore.login() con tenant_list vacío (unit) > setea tenants como array vacío cuando tenant_list es [] 70ms
+ ✓ src/stores/__tests__/unit/login-sin-tenant.spec.js > US14 — useAuthStore.login() con tenant_list vacío (unit) > no llama a selectTenant cuando tenant_list es [] 20ms
+ ✓ src/stores/__tests__/unit/login-sin-tenant.spec.js > US14 — useAuthStore.login() con tenant_list vacío (unit) > no debe modificar router._authCheckPromise al hacer login 16ms
+ ✓ src/stores/__tests__/unit/login-sin-tenant.spec.js > US14 — useAuthStore.login() con tenant_list vacío (unit) > retorna true tras login exitoso sin tenants 14ms
+ ✓ src/stores/__tests__/unit/logout.spec.js > US12 — useAuthStore.logout() resetea el caché del router (unit) > logout() asigna null a router._authCheckPromise para invalidar el caché 62ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > interceptor llama POST /api/users/refresh/ cuando un endpoint retorna 401
+AxiosError: Network Error
+ ❯ XMLHttpRequest.handleError node_modules/axios/lib/adapters/xhr.js:122:21
+ ❯ XMLHttpRequest.invokeTheCallbackFunction node_modules/jsdom/lib/generated/idl/EventHandlerNonNull.js:14:28
+ ❯ XMLHttpRequest.<anonymous> node_modules/jsdom/lib/jsdom/living/helpers/create-event-accessor.js:57:32
+ ❯ innerInvokeEventListeners node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16
+ ❯ invokeEventListeners node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3
+ ❯ XMLHttpRequestImpl._dispatch node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:243:9
+ ❯ fireAnEvent node_modules/jsdom/lib/jsdom/living/helpers/events.js:18:36
+ ❯ requestErrorSteps node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:157:3
+ ❯ dispatchError node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:131:3
+ ❯ node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:752:13
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:46:41
+ ❯ src/api/__tests__/unit/jwt-interceptor.spec.js:64:9
+     62|         };
+     63|
+     64|         await errorHandler(fakeError);
+       |         ^
+     65|
+     66|         // RED: la llamada a refresh debe haberse realizado
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { description: undefined, number: undefined, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false, legacyInterceptorReqResOrdering: true }, adapter: [ 'xhr', 'http', 'fetch' ], transformRequest: [ 'Function<transformRequest>' ], transformResponse: [ 'Function<transformResponse>' ], timeout: +0, xsrfCookieName: 'XSRF-TOKEN', xsrfHeaderName: 'X-XSRF-TOKEN', maxContentLength: -1, maxBodyLength: -1, env: { FormData: 'Function<FormData>', Blob: 'Function<Blob>' }, validateStatus: 'Function<validateStatus>', headers: { Accept: 'application/json, text/plain, */*', 'Content-Type': 'application/json' }, baseURL: 'http://localhost:8000', withCredentials: true, _retry: true, method: 'get', url: '/api/users/me/', allowAbsoluteUrls: true }, code: 'ERR_NETWORK', status: undefined }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  src/api/__tests__/unit/jwt-interceptor.spec.js > US07 — CA04: interceptor JWT auto-refresh (api/index.js) > interceptor retoca el request original después de un refresh exitoso
+AxiosError: Network Error
+ ❯ XMLHttpRequest.handleError node_modules/axios/lib/adapters/xhr.js:122:21
+ ❯ XMLHttpRequest.invokeTheCallbackFunction node_modules/jsdom/lib/generated/idl/EventHandlerNonNull.js:14:28
+ ❯ XMLHttpRequest.<anonymous> node_modules/jsdom/lib/jsdom/living/helpers/create-event-accessor.js:57:32
+ ❯ innerInvokeEventListeners node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:360:16
+ ❯ invokeEventListeners node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:296:3
+ ❯ XMLHttpRequestImpl._dispatch node_modules/jsdom/lib/jsdom/living/events/EventTarget-impl.js:243:9
+ ❯ fireAnEvent node_modules/jsdom/lib/jsdom/living/helpers/events.js:18:36
+ ❯ requestErrorSteps node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:157:3
+ ❯ dispatchError node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:131:3
+ ❯ node_modules/jsdom/lib/jsdom/living/xhr/XMLHttpRequest-impl.js:752:13
+ ❯ Axios.request node_modules/axios/lib/core/Axios.js:46:41
+ ❯ src/api/__tests__/unit/jwt-interceptor.spec.js:87:24
+     85|         };
+     86|
+     87|         const result = await errorHandler(fakeError);
+       |                        ^
+     88|
+     89|         // RED: el interceptor debe reintentar y devolver la respuesta…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { description: undefined, number: undefined, config: { transitional: { silentJSONParsing: true, forcedJSONParsing: true, clarifyTimeoutError: false, legacyInterceptorReqResOrdering: true }, adapter: [ 'xhr', 'http', 'fetch' ], transformRequest: [ 'Function<transformRequest>' ], transformResponse: [ 'Function<transformResponse>' ], timeout: +0, xsrfCookieName: 'XSRF-TOKEN', xsrfHeaderName: 'X-XSRF-TOKEN', maxContentLength: -1, maxBodyLength: -1, env: { FormData: 'Function<FormData>', Blob: 'Function<Blob>' }, validateStatus: 'Function<validateStatus>', headers: { Accept: 'application/json, text/plain, */*', 'Content-Type': 'application/json' }, baseURL: 'http://localhost:8000', withCredentials: true, _retry: true, method: 'get', url: '/api/users/me/', allowAbsoluteUrls: true }, code: 'ERR_NETWORK', status: undefined }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /dashboard tras logout redirige al login
+AssertionError: expected 'dashboard' to be 'login' // Object.is equality
+
+Expected: "login"
+Received: "dashboard"
+
+ ❯ src/router/__tests__/integration/logout.spec.js:49:48
+     47|
+     48|         // FALLA: el guard usa authCheckPromise cacheado como true, pe…
+     49|         expect(router.currentRoute.value.name).toBe("login");
+       |                                                ^
+     50|         expect(router.currentRoute.value.path).toBe("/login");
+     51|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /profile tras logout con rol owner redirige al login
+AssertionError: expected 'profile' to be 'login' // Object.is equality
+
+Expected: "login"
+Received: "profile"
+
+ ❯ src/router/__tests__/integration/logout.spec.js:115:48
+    113|
+    114|         // FALLA: criterio 3 — el comportamiento debe aplicar a owner
+    115|         expect(router.currentRoute.value.name).toBe("login");
+       |                                                ^
+    116|         expect(router.currentRoute.value.path).toBe("/login");
+    117|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /tenants/:id tras logout con rol admin redirige al login
+AssertionError: expected 'tenant-detail' to be 'login' // Object.is equality
+
+Expected: "login"
+Received: "tenant-detail"
+
+ ❯ src/router/__tests__/integration/logout.spec.js:147:48
+    145|
+    146|         // FALLA: criterio 3 — el comportamiento debe aplicar a admin
+    147|         expect(router.currentRoute.value.name).toBe("login");
+       |                                                ^
+    148|         expect(router.currentRoute.value.path).toBe("/login");
+    149|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  src/router/__tests__/integration/logout.spec.js > US12 — redirección post-logout (integration) > navegar a /tenants/:id/settings tras logout con rol member redirige al login
+AssertionError: expected 'tenant-settings' to be 'login' // Object.is equality
+
+Expected: "login"
+Received: "tenant-settings"
+
+ ❯ src/router/__tests__/integration/logout.spec.js:179:48
+    177|
+    178|         // FALLA: criterio 3 — el comportamiento debe aplicar a member
+    179|         expect(router.currentRoute.value.name).toBe("login");
+       |                                                ^
+    180|         expect(router.currentRoute.value.path).toBe("/login");
+    181|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA01/CA03: Login.vue — el botón de submit dice 'Iniciar sesión'
+AssertionError: Login.vue debe contener 'Iniciar sesión' en el botón de submit: expected '<template>\n    <div class="min-h-scr…' to contain 'Iniciar sesión'
+
+- Expected
++ Received
+
+- Iniciar sesión
++ <template>
++     <div class="min-h-screen flex items-center justify-center bg-gray-100">
++         <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
++             <h1 class="text-2xl font-bold text-center mb-6">Sign In</h1>
++
++             <NotificationBanner v-if="error" type="error" :message="error" @close="clearError" />
++
++             <form @submit.prevent="handleLogin" class="space-y-4">
++                 <div>
++                     <label for="email" class="block text-sm font-medium text-gray-700">
++                         Email
++                     </label>
++                     <input
++                         id="email"
++                         v-model="form.email"
++                         type="email"
++                         required
++                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
++                         placeholder="you@example.com"
++                     />
++                 </div>
++
++                 <div>
++                     <label for="password" class="block text-sm font-medium text-gray-700">
++                         Password
++                     </label>
++                     <input
++                         id="password"
++                         v-model="form.password"
++                         type="password"
++                         required
++                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
++                     />
++                 </div>
++
++                 <button
++                     type="submit"
++                     :disabled="loading"
++                     class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
++                 >
++                     {{ loading ? "Signing in..." : "Sign In" }}
++                 </button>
++             </form>
++
++             <div class="mt-6 text-center text-sm">
++                 <router-link
++                     to="/register"
++                     class="font-medium text-indigo-600 hover:text-indigo-500"
++                 >
++                     Don't have an account? Sign up
++                 </router-link>
++             </div>
++
++             <div class="mt-4 text-center text-sm">
++                 <router-link
++                     to="/forgot-password"
++                     class="font-medium text-gray-600 hover:text-gray-500"
++                 >
++                     Forgot your password?
++                 </router-link>
++             </div>
++         </div>
++     </div>
++ </template>
++
++ <script setup>
++ import { reactive } from "vue";
++ import { useRouter } from "vue-router";
++ import { useAuth } from "@/composables/useAuth";
++ import NotificationBanner from "@/components/NotificationBanner.vue";
++
++ const router = useRouter();
++ const { login, loading, error, clearError } = useAuth();
++
++ const form = reactive({
++     email: "",
++     password: "",
++ });
++
++ async function handleLogin() {
++     const success = await login(form.email, form.password);
++     if (success) {
++         router.push("/dashboard");
++     }
++ }
++ </script>
++
+
+ ❯ src/views/__tests__/unit/spa-i18n.spec.js:25:90
+     23|         // FALLA: Login.vue actualmente usa "Sign In" en lugar de "Ini…
+     24|         const source = readFileSync(resolve(SRC, "views/auth/Login.vue…
+     25|         expect(source, "Login.vue debe contener 'Iniciar sesión' en el…
+       |                                                                                          ^
+     26|             "Iniciar sesión",
+     27|         );
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA01: Login.vue — el estado de loading del botón dice 'Iniciando sesión...'
+AssertionError: Login.vue debe mostrar 'Iniciando sesión...' durante el loading: expected '<template>\n    <div class="min-h-scr…' to contain 'Iniciando sesión...'
+
+- Expected
++ Received
+
+- Iniciando sesión...
++ <template>
++     <div class="min-h-screen flex items-center justify-center bg-gray-100">
++         <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
++             <h1 class="text-2xl font-bold text-center mb-6">Sign In</h1>
++
++             <NotificationBanner v-if="error" type="error" :message="error" @close="clearError" />
++
++             <form @submit.prevent="handleLogin" class="space-y-4">
++                 <div>
++                     <label for="email" class="block text-sm font-medium text-gray-700">
++                         Email
++                     </label>
++                     <input
++                         id="email"
++                         v-model="form.email"
++                         type="email"
++                         required
++                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
++                         placeholder="you@example.com"
++                     />
++                 </div>
++
++                 <div>
++                     <label for="password" class="block text-sm font-medium text-gray-700">
++                         Password
++                     </label>
++                     <input
++                         id="password"
++                         v-model="form.password"
++                         type="password"
++                         required
++                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
++                     />
++                 </div>
++
++                 <button
++                     type="submit"
++                     :disabled="loading"
++                     class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
++                 >
++                     {{ loading ? "Signing in..." : "Sign In" }}
++                 </button>
++             </form>
++
++             <div class="mt-6 text-center text-sm">
++                 <router-link
++                     to="/register"
++                     class="font-medium text-indigo-600 hover:text-indigo-500"
++                 >
++                     Don't have an account? Sign up
++                 </router-link>
++             </div>
++
++             <div class="mt-4 text-center text-sm">
++                 <router-link
++                     to="/forgot-password"
++                     class="font-medium text-gray-600 hover:text-gray-500"
++                 >
++                     Forgot your password?
++                 </router-link>
++             </div>
++         </div>
++     </div>
++ </template>
++
++ <script setup>
++ import { reactive } from "vue";
++ import { useRouter } from "vue-router";
++ import { useAuth } from "@/composables/useAuth";
++ import NotificationBanner from "@/components/NotificationBanner.vue";
++
++ const router = useRouter();
++ const { login, loading, error, clearError } = useAuth();
++
++ const form = reactive({
++     email: "",
++     password: "",
++ });
++
++ async function handleLogin() {
++     const success = await login(form.email, form.password);
++     if (success) {
++         router.push("/dashboard");
++     }
++ }
++ </script>
++
+
+ ❯ src/views/__tests__/unit/spa-i18n.spec.js:36:11
+     34|             source,
+     35|             "Login.vue debe mostrar 'Iniciando sesión...' durante el l…
+     36|         ).toContain("Iniciando sesión...");
+       |           ^
+     37|     });
+     38|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA05: Dashboard.vue — el botón de logout dice 'Cerrar sesión'
+AssertionError: Dashboard.vue debe contener 'Cerrar sesión' en el botón de logout: expected '<template>\n    <div class="min-h-scr…' to contain 'Cerrar sesión'
+
+- Expected
++ Received
+
+- Cerrar sesión
++ <template>
++     <div class="min-h-screen bg-gray-100">
++         <nav class="bg-white shadow-sm">
++             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
++                 <div class="flex justify-between h-16">
++                     <div class="flex items-center">
++                         <h1 class="text-xl font-bold text-gray-900">Dashboard</h1>
++                     </div>
++                     <div class="flex items-center space-x-4">
++                         <span class="text-sm text-gray-600">{{ user?.email }}</span>
++                         <router-link
++                             to="/profile"
++                             class="text-sm text-indigo-600 hover:text-indigo-500"
++                         >
++                             Profile
++                         </router-link>
++                         <button
++                             @click="logout"
++                             class="text-sm text-gray-600 hover:text-gray-900"
++                         >
++                             Sign Out
++                         </button>
++                     </div>
++                 </div>
++             </div>
++         </nav>
++
++         <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
++             <div class="px-4 py-6 sm:px-0">
++                 <div class="flex justify-between items-center mb-6">
++                     <h2 class="text-2xl font-bold text-gray-900">My Tenants</h2>
++                     <button
++                         @click="showCreateModal = true"
++                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
++                     >
++                         Create Tenant
++                     </button>
++                 </div>
++
++                 <NotificationBanner v-if="error" type="error" :message="error" @close="clearError" />
++
++                 <div v-if="loading" class="text-center py-10">
++                     <p class="text-gray-600">Loading tenants...</p>
++                 </div>
++
++                 <div v-else-if="tenants.length === 0" class="text-center py-10 bg-white rounded-lg shadow">
++                     <p class="text-gray-600 mb-4">You don't have any tenants yet.</p>
++                     <button
++                         @click="showCreateModal = true"
++                         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
++                     >
++                         Create Your First Tenant
++                     </button>
++                 </div>
++
++                 <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
++                     <TenantCard
++                         v-for="tenant in tenants"
++                         :key="tenant.id"
++                         :tenant="tenant"
++                         @click="goToTenant(tenant.id)"
++                     />
++                 </div>
++             </div>
++         </main>
++
++         <div v-if="showCreateModal" class="fixed z-10 inset-0 overflow-y-auto">
++             <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
++                 <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showCreateModal = false"></div>
++                 <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
++                     <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Create New Tenant</h3>
++                     <form @submit.prevent="handleCreateTenant">
++                         <div class="mb-4">
++                             <label class="block text-sm font-medium text-gray-700">Name</label>
++                             <input v-model="newTenant.name" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
++                         </div>
++                         <div class="mb-4">
++                             <label class="block text-sm font-medium text-gray-700">Slug</label>
++                             <input v-model="newTenant.slug" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
++                         </div>
++                         <div class="flex justify-end space-x-3">
++                             <button @click="showCreateModal = false" type="button" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
++                             <button type="submit" class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">Create</button>
++                         </div>
++                     </form>
++                 </div>
++             </div>
++         </div>
++     </div>
++ </template>
++
++ <script setup>
++ import { reactive, ref, onMounted, computed } from "vue";
++ import { useRouter } from "vue-router";
++ import { useTenant } from "@/composables/useTenant";
++ import { useAuth } from "@/composables/useAuth";
++ import TenantCard from "@/components/TenantCard.vue";
++ import NotificationBanner from "@/components/NotificationBanner.vue";
++
++ const router = useRouter();
++ const { tenants, loading, error, fetchTenants, createTenant, clearError } = useTenant();
++ const { user, logout } = useAuth();
++
++ const showCreateModal = ref(false);
++ const newTenant = reactive({
++     name: "",
++     slug: "",
++ });
++
++ onMounted(() => {
++     fetchTenants();
++ });
++
++ function goToTenant(id) {
++     router.push(`/tenants/${id}`);
++ }
++
++ async function handleCreateTenant() {
++     const result = await createTenant(newTenant);
++     if (result) {
++         showCreateModal.value = false;
++         newTenant.name = "";
++         newTenant.slug = "";
++     }
++ }
++ </script>
++
+
+ ❯ src/views/__tests__/unit/spa-i18n.spec.js:45:11
+     43|             source,
+     44|             "Dashboard.vue debe contener 'Cerrar sesión' en el botón d…
+     45|         ).toContain("Cerrar sesión");
+       |           ^
+     46|     });
+     47|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  src/views/__tests__/unit/spa-i18n.spec.js > US07 — texto en español de la SPA — CA01/CA02/CA03/CA05 > CA02: Dashboard.vue — existe un elemento raíz con clase CSS 'dashboard'
+AssertionError: Dashboard.vue debe tener un elemento con class='dashboard' (o que la incluya): expected '<template>\n    <div class="min-h-scr…' to match /class="[^"]*\bdashboard\b[^"]*"/
+
+- Expected:
+/class="[^"]*\bdashboard\b[^"]*"/
+
++ Received:
+"<template>
+    <div class=\"min-h-screen bg-gray-100\">
+        <nav class=\"bg-white shadow-sm\">
+            <div class=\"max-w-7xl mx-auto px-4 sm:px-6 lg:px-8\">
+                <div class=\"flex justify-between h-16\">
+                    <div class=\"flex items-center\">
+                        <h1 class=\"text-xl font-bold text-gray-900\">Dashboard</h1>
+                    </div>
+                    <div class=\"flex items-center space-x-4\">
+                        <span class=\"text-sm text-gray-600\">{{ user?.email }}</span>
+                        <router-link
+                            to=\"/profile\"
+                            class=\"text-sm text-indigo-600 hover:text-indigo-500\"
+                        >
+                            Profile
+                        </router-link>
+                        <button
+                            @click=\"logout\"
+                            class=\"text-sm text-gray-600 hover:text-gray-900\"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class=\"max-w-7xl mx-auto py-6 sm:px-6 lg:px-8\">
+            <div class=\"px-4 py-6 sm:px-0\">
+                <div class=\"flex justify-between items-center mb-6\">
+                    <h2 class=\"text-2xl font-bold text-gray-900\">My Tenants</h2>
+                    <button
+                        @click=\"showCreateModal = true\"
+                        class=\"inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700\"
+                    >
+                        Create Tenant
+                    </button>
+                </div>
+
+                <NotificationBanner v-if=\"error\" type=\"error\" :message=\"error\" @close=\"clearError\" />
+
+                <div v-if=\"loading\" class=\"text-center py-10\">
+                    <p class=\"text-gray-600\">Loading tenants...</p>
+                </div>
+
+                <div v-else-if=\"tenants.length === 0\" class=\"text-center py-10 bg-white rounded-lg shadow\">
+                    <p class=\"text-gray-600 mb-4\">You don't have any tenants yet.</p>
+                    <button
+                        @click=\"showCreateModal = true\"
+                        class=\"inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700\"
+                    >
+                        Create Your First Tenant
+                    </button>
+                </div>
+
+                <div v-else class=\"grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3\">
+                    <TenantCard
+                        v-for=\"tenant in tenants\"
+                        :key=\"tenant.id\"
+                        :tenant=\"tenant\"
+                        @click=\"goToTenant(tenant.id)\"
+                    />
+                </div>
+            </div>
+        </main>
+
+        <div v-if=\"showCreateModal\" class=\"fixed z-10 inset-0 overflow-y-auto\">
+            <div class=\"flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0\">
+                <div class=\"fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity\" @click=\"showCreateModal = false\"></div>
+                <div class=\"inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6\">
+                    <h3 class=\"text-lg leading-6 font-medium text-gray-900 mb-4\">Create New Tenant</h3>
+                    <form @submit.prevent=\"handleCreateTenant\">
+                        <div class=\"mb-4\">
+                            <label class=\"block text-sm font-medium text-gray-700\">Name</label>
+                            <input v-model=\"newTenant.name\" type=\"text\" required class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm\" />
+                        </div>
+                        <div class=\"mb-4\">
+                            <label class=\"block text-sm font-medium text-gray-700\">Slug</label>
+                            <input v-model=\"newTenant.slug\" type=\"text\" required class=\"mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm\" />
+                        </div>
+                        <div class=\"flex justify-end space-x-3\">
+                            <button @click=\"showCreateModal = false\" type=\"button\" class=\"px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50\">Cancel</button>
+                            <button type=\"submit\" class=\"px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700\">Create</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script setup>
+import { reactive, ref, onMounted, computed } from \"vue\";
+import { useRouter } from \"vue-router\";
+import { useTenant } from \"@/composables/useTenant\";
+import { useAuth } from \"@/composables/useAuth\";
+import TenantCard from \"@/components/TenantCard.vue\";
+import NotificationBanner from \"@/components/NotificationBanner.vue\";
+
+const router = useRouter();
+const { tenants, loading, error, fetchTenants, createTenant, clearError } = useTenant();
+const { user, logout } = useAuth();
+
+const showCreateModal = ref(false);
+const newTenant = reactive({
+    name: \"\",
+    slug: \"\",
+});
+
+onMounted(() => {
+    fetchTenants();
+});
+
+function goToTenant(id) {
+    router.push(`/tenants/${id}`);
+}
+
+async function handleCreateTenant() {
+    const result = await createTenant(newTenant);
+    if (result) {
+        showCreateModal.value = false;
+        newTenant.name = \"\";
+        newTenant.slug = \"\";
+    }
+}
+</script>
+"
+
+ ❯ src/views/__tests__/unit/spa-i18n.spec.js:55:11
+     53|             source,
+     54|             "Dashboard.vue debe tener un elemento con class='dashboard…
+     55|         ).toMatch(/class="[^"]*\bdashboard\b[^"]*"/);
+       |           ^
+     56|     });
+     57| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  3 failed | 8 passed (11)
+      Tests  10 failed | 28 passed (38)
+   Start at  21:37:15
+   Duration  73.99s (transform 2.42s, setup 0ms, import 3.00s, tests 7.18s, environment 49.41s)
+

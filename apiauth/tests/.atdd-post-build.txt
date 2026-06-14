@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.12, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/csotelo/Development/ventures/corebase/apiauth
+configfile: pytest.ini
+testpaths: tests
+plugins: asyncio-1.4.0, anyio-4.13.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 33 items
+
+tests/integration/test_api_contract.py ....                              [ 12%]
+tests/test_api.py .........                                              [ 39%]
+tests/test_domain.py .........                                           [ 66%]
+tests/test_use_cases.py .........                                        [ 93%]
+tests/unit/test_process_request_schema.py ..                             [100%]
+
+=============================== warnings summary ===============================
+.venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295
+.venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295
+.venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295
+.venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295
+  /home/csotelo/Development/ventures/corebase/apiauth/.venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+tests/test_use_cases.py::TestProcessRequestUseCase::test_process_success
+  /home/csotelo/Development/ventures/corebase/apiauth/app/application/process_request.py:95: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    processed_at=datetime.utcnow(),
+
+.venv/lib/python3.13/site-packages/_pytest/cacheprovider.py:475
+  /home/csotelo/Development/ventures/corebase/apiauth/.venv/lib/python3.13/site-packages/_pytest/cacheprovider.py:475: PytestCacheWarning: cache could not write path /home/csotelo/Development/ventures/corebase/apiauth/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/home/csotelo/Development/ventures/corebase/apiauth/.pytest_cache/v/cache/nodeids'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 33 passed, 6 warnings in 2.70s ========================
