@@ -280,6 +280,30 @@ services:
       "
     restart: "no"
 
+  ingestor:
+    build:
+      context: ./ingestor
+      dockerfile: Dockerfile
+    environment:
+      - DB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-multitenant_db}
+      - MIN_CYCLE_INTERVAL_SEC=${INGESTOR_CYCLE_SEC:-3600}
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   mailpit:
     image: axllent/mailpit:latest
     ports:

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.plans.apps.PlansConfig",
     "apps.dashboard.apps.DashboardConfig",
     "apps.watchdog.apps.WatchdogConfig",
+    "apps.weather.apps.WeatherConfig",
 ]
 
 MIDDLEWARE = [
