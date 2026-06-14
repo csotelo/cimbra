@@ -1,8 +1,8 @@
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 
-from .models import Station, StormAlert, WeatherObservation
-from .serializers import StationSerializer, StormAlertSerializer, WeatherObservationSerializer
+from .models import Station, StormAlert, TelegramSubscription, WeatherObservation
+from .serializers import StationSerializer, StormAlertSerializer, TelegramSubscriptionSerializer, WeatherObservationSerializer
 
 
 class StationListView(ListAPIView):
@@ -33,3 +33,9 @@ class AlertListView(ListAPIView):
         if level:
             qs = qs.filter(alert_level=level)
         return qs[:100]
+
+
+class TelegramSubscriptionListView(ListAPIView):
+    permission_classes = [IsAdminUser]
+    serializer_class = TelegramSubscriptionSerializer
+    queryset = TelegramSubscription.objects.filter(is_active=True).order_by("-created_at")

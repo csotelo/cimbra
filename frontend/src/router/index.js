@@ -98,6 +98,12 @@ const routes = [
                 component: () => import("@/views/weather/Stations.vue"),
                 meta: { requiresAuth: true, menu: true, label: "Estaciones", order: 2, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
             },
+            {
+                path: "suscripciones",
+                name: "telegram-subscriptions",
+                component: () => import("@/views/weather/TelegramSubscriptions.vue"),
+                meta: { requiresAuth: true, requiresAdmin: true, menu: true, label: "Telegram", order: 3, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
+            },
         ],
     },
 ];

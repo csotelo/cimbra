@@ -68,6 +68,7 @@ class StormAlert(models.Model):
     generated_at = models.DateTimeField(db_index=True)
     model_version = models.CharField(max_length=50, default="")
     notified_at = models.DateTimeField(null=True, blank=True)
+    telegram_notified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -112,3 +113,22 @@ class ModelArtifact(models.Model):
 
     def __str__(self):
         return f"{self.version} [{self.status}] acc={self.accuracy:.3f}" if self.accuracy else f"{self.version} [{self.status}]"
+
+
+class TelegramSubscription(models.Model):
+    chat_id = models.BigIntegerField(unique=True)
+    username = models.CharField(max_length=150, blank=True, default="")
+    department = models.CharField(max_length=100, blank=True, default="",
+                                  help_text="Vacío = todos los departamentos")
+    min_level = models.IntegerField(default=2,
+                                    help_text="Nivel mínimo de alerta a notificar (1-4)")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "telegram_subscriptions"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        dept = self.department or "todos"
+        return f"@{self.username or self.chat_id} → {dept} (nivel≥{self.min_level})"

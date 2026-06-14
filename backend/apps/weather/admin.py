@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import ModelArtifact, Station, StormAlert, WeatherObservation
+from .models import ModelArtifact, Station, StormAlert, TelegramSubscription, WeatherObservation
 
 
 @admin.register(Station)
@@ -90,3 +90,16 @@ class ModelArtifactAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(TelegramSubscription)
+class TelegramSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ["chat_id", "username", "department_display", "min_level", "is_active", "created_at"]
+    list_filter = ["is_active", "min_level"]
+    search_fields = ["username", "department"]
+    list_editable = ["is_active", "min_level"]
+    ordering = ["-created_at"]
+
+    @admin.display(description="Departamento")
+    def department_display(self, obj):
+        return obj.department or "— todos —"

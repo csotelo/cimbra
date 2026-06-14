@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Station, StormAlert, WeatherObservation
+from .models import ModelArtifact, Station, StormAlert, TelegramSubscription, WeatherObservation
 
 
 class StationSerializer(serializers.ModelSerializer):
@@ -30,3 +30,9 @@ class StormAlertSerializer(serializers.ModelSerializer):
             "probability", "alert_level", "level_label", "is_active",
             "generated_at", "model_version", "created_at",
         ]
+
+
+class TelegramSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TelegramSubscription
+        fields = ["id", "chat_id", "username", "department", "min_level", "is_active", "created_at"]
