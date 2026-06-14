@@ -1,19 +1,21 @@
 """Base settings - shared across all environments."""
 
 import os
+import urllib.parse as _urlparse
 from pathlib import Path
 from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY") or os.environ.get("DJANGO_SECRET_KEY")
-if not SECRET_KEY:
-    raise ValueError(
-        "SECRET_KEY environment variable is required. "
-        "Set it in your .env file or environment."
-    )
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-insecure-change-in-production")
 
-ALLOWED_HOSTS: list[str] = []
+DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
 
 INSTALLED_APPS = [
     "unfold",
@@ -77,6 +79,18 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.environ.get("POSTGRES_DB", "multitenant_db"),
+        "USER": os.environ.get("POSTGRES_USER", "postgres"),
+        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
+        "HOST": os.environ.get("POSTGRES_HOST", "postgres"),
+        "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+        "CONN_MAX_AGE": 60,
+    }
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -151,8 +165,14 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
-CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+_REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379")
+_redis = _urlparse.urlparse(_REDIS_URL)
+_redis_host = {"host": _redis.hostname or "redis", "port": _redis.port or 6379}
+if _redis.password:
+    _redis_host["password"] = _redis.password
+
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", f"{_REDIS_URL}/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", f"{_REDIS_URL}/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -163,16 +183,14 @@ CELERY_TASK_TRACK_STARTED = True
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [("redis", 6379)],
-        },
+        "CONFIG": {"hosts": [_redis_host]},
     },
 }
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": "redis://redis:6379/1",
+        "LOCATION": f"{_REDIS_URL}/1",
     }
 }
 
@@ -202,14 +220,17 @@ JWT_API_TOKEN_SECRET = os.environ.get("FASTAPI_SECRET_KEY", "dev-only-not-for-pr
 ALLOW_SELF_REGISTRATION = True
 EMAIL_VERIFICATION_EXPIRY_HOURS = 24
 PASSWORD_RESET_EXPIRY_HOURS = 1
-FRONTEND_URL = "http://localhost:3000"
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 SINGLE_TENANT_MODE = os.environ.get("SINGLE_TENANT_MODE", "True") == "True"
 MAIN_TENANT_SLUG = os.environ.get("MAIN_TENANT_SLUG", "ximbra")
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    o.strip()
+    for o in os.environ.get(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
+    if o.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
@@ -218,3 +239,23 @@ CORS_EXPOSE_HEADERS = ["Content-Type", "X-CSRFToken"]
 CSRF_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = not DEBUG
+SECURE_BROWSER_XSS_FILTER = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = not DEBUG
+X_FRAME_OPTIONS = "DENY"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "verbose"},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+}

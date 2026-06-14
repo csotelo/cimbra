@@ -1,4 +1,4 @@
-"""Development settings."""
+"""Development settings — overrides for local dev only."""
 
 import os
 
@@ -6,10 +6,7 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = True
 
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "dev-secret-key-not-for-production",
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key-not-for-production")
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
