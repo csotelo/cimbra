@@ -64,7 +64,7 @@ services:
     networks:
       - app_network
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"]
+      test: ["CMD-SHELL", "mongo --quiet --eval 'db.adminCommand(\"ping\")'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -78,9 +78,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: production
     volumes:
-      - ./backend:/app
       - pip_cache:/pip-cache
     ports:
       - "${DJANGO_PORT:-8000}:8000"
@@ -125,10 +124,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: production
     command: celery -A config worker -l info
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
     environment:
@@ -157,10 +154,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      target: development
+      target: production
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
     environment:
@@ -208,7 +203,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -382,38 +377,21 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "8025:8025"
-      - "1025:1025"
-    networks:
-      - app_network
-    deploy:
-      resources:
-        limits:
-          memory: 64m
-          cpus: "0.1"
-
   vue:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: development
-    command: npm run dev -- --host 0.0.0.0
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      target: production
+      args:
+        VITE_APP_NAME: Ximbra
+        VITE_API_BASE_URL: http://18.189.230.171:8000
     ports:
-      - "${VUE_PORT:-3000}:3000"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:${DJANGO_PORT:-8000}
-      - VITE_WS_URL=ws://localhost:${DJANGO_PORT:-8000}/ws
+      - "${VUE_PORT:-80}:80"
     networks:
       - app_network
     deploy:
       resources:
         limits:
-          memory: 256m
-          cpus: "0.5"
+          memory: 128m
+          cpus: "0.25"
     restart: unless-stopped

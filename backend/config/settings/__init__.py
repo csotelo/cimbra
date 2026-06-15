@@ -12,9 +12,7 @@ component_files = [
     "base.py",
 ]
 
-if env == "production":
-    component_files.append("production.py")
-else:
+if env != "production":
     component_files.append("development.py")
     component_files.append(optional("local.py"))
 
