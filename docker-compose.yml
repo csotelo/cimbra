@@ -384,7 +384,6 @@ services:
       target: production
       args:
         VITE_APP_NAME: Ximbra
-        VITE_API_BASE_URL: http://18.189.230.171
     ports:
       - "${VUE_PORT:-80}:80"
     networks:
