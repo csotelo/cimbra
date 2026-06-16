@@ -111,6 +111,30 @@ const routes = [
                 meta: { requiresAuth: true, requiresAdmin: true, menu: true, label: "Telegram", order: 3, group: "meteorologia", groupLabel: "Meteorología", groupOrder: 10 },
             },
             {
+                path: "campo/empleados",
+                name: "employee-list",
+                component: () => import("@/views/field/EmployeeList.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Empleados", order: 1, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
+                path: "campo/proyectos",
+                name: "project-list",
+                component: () => import("@/views/field/ProjectList.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Proyectos", order: 2, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
+                path: "campo/proyectos/:id",
+                name: "project-detail",
+                component: () => import("@/views/field/ProjectDetail.vue"),
+                meta: { requiresAuth: true },
+            },
+            {
+                path: "campo/frentes",
+                name: "geofence-map",
+                component: () => import("@/views/field/GeoFenceMap.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Frentes de Trabajo", order: 3, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
                 path: "configuracion",
                 name: "site-settings",
                 component: () => import("@/views/admin/SiteSettings.vue"),
