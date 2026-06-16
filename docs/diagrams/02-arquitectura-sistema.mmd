@@ -1,0 +1,37 @@
+flowchart TB
+    BROWSER["Browser<br/>Vue 3 SPA"] -->|"HTTP :80"| NGINX["nginx"]
+    FLUTTER["App Flutter<br/>empleados de campo"] -->|"MQTT :1883"| MOSQ["mosquitto<br/>broker MQTT"]
+
+    NGINX --> DJANGO["Django :8000<br/>DRF + Channels + Admin + JWT"]
+    CLIENTEXT["Cliente externo<br/>con API token"] --> FASTAPI["FastAPI :8001<br/>solo red interna Docker"]
+    MOSQ --> GPST["gps_tracker<br/>Redis + batch PostgreSQL"]
+
+    DJANGO --> PG[("PostgreSQL + PostGIS")]
+    DJANGO --> REDIS[("Redis")]
+    DJANGO --> MONGO[("MongoDB")]
+    FASTAPI --> PG
+    FASTAPI --> REDIS
+    GPST --> REDIS
+    GPST --> PG
+
+    CELERY["Celery Beat 60s<br/>check_field_alerts"] --> REDIS
+    CELERY --> FCMOUT["FCM push a Flutter"]
+
+    ING2["ingestor (1h)"] --> PG
+    TRAIN2["trainer (manual)"] --> PG
+    PRED2["predictor (1h)"] --> PG
+    WATCH["watchdog"] --> PG
+    TGBOT["telegram_bot (5min)"] --> PG
+
+    classDef cliente fill:#e0e7ff,stroke:#4338ca,color:#000
+    classDef gateway fill:#fef3c7,stroke:#b45309,color:#000
+    classDef app fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef datos fill:#d1fae5,stroke:#047857,color:#000
+    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef worker fill:#ede9fe,stroke:#6d28d9,color:#000
+    class BROWSER,FLUTTER,CLIENTEXT cliente
+    class NGINX,MOSQ gateway
+    class DJANGO,FASTAPI app
+    class PG,REDIS,MONGO datos
+    class GPST,CELERY,FCMOUT campo
+    class ING2,TRAIN2,PRED2,WATCH,TGBOT worker

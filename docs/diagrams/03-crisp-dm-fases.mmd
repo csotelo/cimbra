@@ -1,0 +1,13 @@
+flowchart TD
+    P1["1. Business Understanding<br/>¿Hay riesgo de tormenta en la próxima hora?<br/>(predicción binaria, alineada a escala SENAMHI)"]
+    P2["2. Data Understanding<br/>Histórico 2024-2025 de Open-Meteo<br/>por cada estación · 5 variables físicas"]
+    P3["3. Data Preparation<br/>prepare.py"]
+    P4["4. Modeling<br/>train.py"]
+    P5["5. Evaluation<br/>benchmark.py + calibrate.py"]
+    P6["6. Deployment<br/>predict.py — ciclo horario en producción"]
+
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
+    P6 -.->|"re-entrenar con datos nuevos"| P3
+
+    classDef fase fill:#ede9fe,stroke:#6d28d9,color:#000
+    class P1,P2,P3,P4,P5,P6 fase

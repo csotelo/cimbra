@@ -1,0 +1,20 @@
+flowchart TD
+    START["⏱ Cada 60 segundos<br/>(Celery Beat)"] --> A["Buscar StormAlert activas<br/>con nivel ≥ 2 (Amarillo o peor)"]
+    A --> B["Leer de Redis la posición<br/>en vivo de cada empleado"]
+    B --> C["Calcular distancia Haversine<br/>empleado ↔ estación más cercana en alerta"]
+    C --> D{"¿Qué tan lejos<br/>está el empleado?"}
+    D -->|"≤ 16 km"| ROJO["🔴 Nivel 4 — Rojo<br/>zumbido continuo"]
+    D -->|"16-32 km"| AMAR["🟡 Nivel 2 — Amarillo<br/>zumbido intermitente"]
+    D -->|"> 32 km"| VERDE["🟢 Nivel 1 — Verde<br/>no se envía nada"]
+    ROJO --> E{"¿Cooldown OK?<br/>(sin push hace < 5 min<br/>con el mismo nivel)"}
+    AMAR --> E
+    E -->|"sí, puede enviar"| F["📲 Enviar push FCM<br/>+ guardar last_alert_level/sent_at"]
+    E -->|"no, ya se le avisó"| G["omitir — evita espamear"]
+    F --> H["Guardar nivel en Redis<br/>tracking:field_alert:{employee_id} (TTL 2h)<br/>→ pinta el anillo de color en el mapa"]
+
+    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
+    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
+    class ROJO rojo
+    class AMAR amarillo
+    class VERDE verde

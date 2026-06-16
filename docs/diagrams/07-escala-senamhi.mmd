@@ -1,0 +1,14 @@
+flowchart LR
+    P["Probabilidad<br/>calibrada (0-1)"] --> V["< 0.30<br/>🟢 Verde<br/>Sin riesgo"]
+    P --> A["0.30 – 0.60<br/>🟡 Amarillo<br/>Riesgo moderado"]
+    P --> N["0.60 – 0.85<br/>🟠 Naranja<br/>Peligroso"]
+    P --> R["≥ 0.85<br/>🔴 Rojo<br/>Riesgo extremo"]
+
+    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
+    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
+    classDef naranja fill:#fed7aa,stroke:#c2410c,color:#000
+    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
+    class V verde
+    class A amarillo
+    class N naranja
+    class R rojo

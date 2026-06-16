@@ -1,0 +1,26 @@
+erDiagram
+    CustomUser ||--o{ UserTenantRole : tiene
+    Tenant ||--o{ UserTenantRole : agrupa
+    Tenant ||--o{ APIToken : "1 activo por owner"
+    Tenant ||--o{ Invitation : invita
+    CustomUser ||--o{ Notification : recibe
+    CustomUser ||--o{ UserSubscription : suscribe
+    Plan ||--o{ UserSubscription : define
+
+    CustomUser {
+        string email "identificador único"
+        bool is_email_verified
+    }
+    Tenant {
+        uuid id
+        string slug "auto-generado único"
+        int max_users "default 10"
+        int rate_limit "req/min"
+    }
+    UserTenantRole {
+        string role "OWNER, ADMIN o MEMBER"
+    }
+    APIToken {
+        string token "texto plano solo al crear"
+        datetime expires_at
+    }

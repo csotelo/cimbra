@@ -1,0 +1,21 @@
+flowchart LR
+    OM["🌐 Open-Meteo API<br/>(datos del clima)"] --> ING["Ingestor"]
+    ING --> DB[("PostgreSQL<br/>+ PostGIS")]
+    DB --> PRED["Predictor<br/>(red neuronal MLP/LSTM)"]
+    PRED --> SA["⚡ StormAlert<br/>generada"]
+    DB -.entrena.-> TRAIN["Trainer (ML)"]
+    TRAIN -.activa modelo.-> PRED
+    SA --> WEB["Django Admin +<br/>Vue SPA (dashboard)"]
+    SA --> TG["🤖 Telegram Bot"]
+    SA --> ENGINE["📍 Motor de alertas de Campo<br/>(distancia empleado↔estación)"]
+    ENGINE --> FCM["🔔 FCM push"]
+    FCM --> APP["📱 App Flutter<br/>(zumbido + banner)"]
+
+    classDef ext fill:#fde68a,stroke:#b45309,color:#000
+    classDef ai fill:#bfdbfe,stroke:#1d4ed8,color:#000
+    classDef alert fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef out fill:#bbf7d0,stroke:#15803d,color:#000
+    class OM ext
+    class PRED,TRAIN ai
+    class SA,ENGINE alert
+    class WEB,TG,FCM,APP out

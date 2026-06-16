@@ -1,0 +1,6 @@
+flowchart LR
+    FL["App Flutter<br/>cada 30s"] --> GT["gps_tracker"]
+    GT --> RED["Redis vivo"]
+    GT --> PGB["PostgreSQL<br/>lote cada 10s"]
+    CB["Celery Beat<br/>check_field_alerts cada 60s"] --> RED
+    CB -->|"si Roja/Amarilla"| PUSH["FCM push"]

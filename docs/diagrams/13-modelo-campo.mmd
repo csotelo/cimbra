@@ -1,0 +1,33 @@
+erDiagram
+    Project }o--o{ Employee : "M2M (empleados asignados)"
+    Project ||--o{ GeoFence : "tiene frentes"
+    Project ||--o{ RefugePoint : "tiene refugios fijos"
+    Employee ||--o| MobileRefuge : "conduce (FK conductor)"
+
+    Project {
+        string name
+        date start_date
+        date end_date
+        bool is_active
+    }
+    Employee {
+        string full_name
+        string document_number
+        string device_id "único, para MQTT"
+        string fcm_token "para el push"
+        int last_alert_level "última alerta recibida"
+        datetime last_alert_sent_at
+    }
+    GeoFence {
+        polygon perimeter "frente de trabajo"
+        bool is_active
+    }
+    MobileRefuge {
+        string code
+        string plate
+        int capacity
+    }
+    RefugePoint {
+        point location "coordenada fija"
+        int capacity
+    }

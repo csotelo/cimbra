@@ -1,0 +1,7 @@
+flowchart LR
+    A["Cargar el modelo activo<br/>(ModelArtifact.is_active=True)"] --> B["Tomar la última observación<br/>(o últimas 6h si es LSTM)"]
+    B --> C["Predecir probabilidad cruda<br/>raw_prob = model.predict(X)"]
+    C --> D["Calibrar la probabilidad<br/>con Platt Scaling"]
+    D --> E["Asignar nivel SENAMHI<br/>según umbrales de Youden"]
+    E --> F["Calcular SHAP<br/>(por qué este resultado)"]
+    F --> G["Guardar StormAlert<br/>en PostgreSQL"]

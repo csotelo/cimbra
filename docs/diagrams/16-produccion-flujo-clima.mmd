@@ -1,0 +1,5 @@
+flowchart LR
+    ING["ingestor<br/>cada 1h"] --> OBS["WeatherObservation"]
+    OBS --> PRD["predictor<br/>cada 1h"] --> SA["StormAlert"]
+    SA --> TGB["telegram_bot<br/>cada 5 min"]
+    TRN["trainer<br/>manual, bajo demanda"] -.->|"activa nuevo modelo"| PRD

@@ -1,0 +1,50 @@
+erDiagram
+    Station ||--o{ WeatherObservation : genera
+    Station ||--o{ StormAlert : "tiene alertas"
+    WeatherObservation ||--o| StormAlert : "fue la base de"
+    ModelArtifact ||--o{ StormAlert : "predijo con"
+    ModelArtifact ||--o{ ModelBenchmark : "se evaluó en"
+
+    Station {
+        string code "código SENAMHI"
+        point location "lat, lon"
+        int altitude_m
+        bool is_active
+    }
+    WeatherObservation {
+        datetime observed_at
+        float temperature
+        float humidity
+        float pressure
+        float cape
+        float k_index
+        string source "open-meteo"
+    }
+    StormAlert {
+        float probability "calibrada 0-1"
+        int alert_level "1=Verde .. 4=Rojo"
+        json explanation_json "valores SHAP"
+        datetime notified_at
+        datetime telegram_notified_at
+    }
+    ModelArtifact {
+        uuid id
+        string version
+        string status "training/ready/failed"
+        string best_model_type "mlp o lstm"
+        float accuracy
+        float roc_auc
+        json thresholds_json "umbrales Youden"
+        bool is_active "solo uno a la vez"
+    }
+    ModelBenchmark {
+        string model_type
+        int cv_fold
+        float roc_auc
+    }
+    TelegramSubscription {
+        string chat_id
+        string department "vacío = todos"
+        int min_level
+        bool is_active
+    }

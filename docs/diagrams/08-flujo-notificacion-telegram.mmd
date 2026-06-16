@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Pred as Predictor
+    participant DB as PostgreSQL
+    participant API as Django API
+    participant Vue as Dashboard (Vue)
+    participant Bot as telegram_bot
+    participant TG as Telegram
+
+    Pred->>DB: INSERT StormAlert
+    API->>DB: GET /api/weather/alerts/
+    API->>Vue: alertas con nivel + color
+    Vue->>Vue: pinta mapa Leaflet
+
+    loop cada TELEGRAM_NOTIFIER_CYCLE_SEC (5 min)
+        Bot->>DB: alertas sin telegram_notified_at
+        Bot->>Bot: filtra suscriptores por department + min_level
+        Bot->>TG: mensaje Markdown ⚡ Nivel X — Estación — prob% — SHAP
+        Bot->>DB: marca telegram_notified_at
+    end

@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Cel as 📱 Celular del empleado
+    participant MQ as mosquitto (broker MQTT :1883)
+    participant GT as gps_tracker (asyncio)
+    participant R as Redis (vivo, TTL 24h)
+    participant PG as PostgreSQL (histórico)
+
+    loop cada 30 segundos
+        Cel->>MQ: publica posición GPS<br/>{lat, lon, accuracy, ts}
+        MQ->>GT: reenvía (tópico ximbra/+/tracking/+/+/position)
+        GT->>R: HSET tracking:last_position:{tenant_id}<br/>(mapa en vivo lee de aquí)
+        GT->>GT: guarda en buffer en memoria
+    end
+
+    loop cada 10s o cada 500 mensajes acumulados
+        GT->>PG: INSERT por lotes en field_positions
+    end
+
+    Note over GT,MQ: si se pierde la conexión MQTT,<br/>gps_tracker reintenta solo cada 5s

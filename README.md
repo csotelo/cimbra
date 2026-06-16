@@ -31,29 +31,7 @@ Ximbra ingiere variables meteorológicas horarias de la API pública **Open-Mete
 
 La plataforma es multi-tenant con aislamiento lógico: múltiples organizaciones comparten la misma base de datos con separación por software.
 
-```mermaid
-flowchart LR
-    OM["🌐 Open-Meteo API<br/>(datos del clima)"] --> ING["Ingestor"]
-    ING --> DB[("PostgreSQL<br/>+ PostGIS")]
-    DB --> PRED["Predictor<br/>(red neuronal MLP/LSTM)"]
-    PRED --> SA["⚡ StormAlert<br/>generada"]
-    DB -.entrena.-> TRAIN["Trainer (ML)"]
-    TRAIN -.activa modelo.-> PRED
-    SA --> WEB["Django Admin +<br/>Vue SPA (dashboard)"]
-    SA --> TG["🤖 Telegram Bot"]
-    SA --> ENGINE["📍 Motor de alertas de Campo<br/>(distancia empleado↔estación)"]
-    ENGINE --> FCM["🔔 FCM push"]
-    FCM --> APP["📱 App Flutter<br/>(zumbido + banner)"]
-
-    classDef ext fill:#fde68a,stroke:#b45309,color:#000
-    classDef ai fill:#bfdbfe,stroke:#1d4ed8,color:#000
-    classDef alert fill:#fecaca,stroke:#b91c1c,color:#000
-    classDef out fill:#bbf7d0,stroke:#15803d,color:#000
-    class OM ext
-    class PRED,TRAIN ai
-    class SA,ENGINE alert
-    class WEB,TG,FCM,APP out
-```
+![vision general](docs/diagrams/01-vision-general.png)
 
 El módulo de Campo añade un segundo flujo de datos, independiente del meteorológico: dispositivos móviles de trabajadores envían su posición GPS por MQTT en tiempo real, y un motor calcula su distancia a la estación con alerta activa más cercana para decidir si deben recibir una notificación push con zumbido. Ver el detalle completo en [Módulo de Campo](#módulo-de-campo--gps-mqtt-y-alertas-móviles).
 
@@ -61,45 +39,7 @@ El módulo de Campo añade un segundo flujo de datos, independiente del meteorol
 
 ## Arquitectura del sistema
 
-```mermaid
-flowchart TB
-    BROWSER["Browser<br/>Vue 3 SPA"] -->|"HTTP :80"| NGINX["nginx"]
-    FLUTTER["App Flutter<br/>empleados de campo"] -->|"MQTT :1883"| MOSQ["mosquitto<br/>broker MQTT"]
-
-    NGINX --> DJANGO["Django :8000<br/>DRF + Channels + Admin + JWT"]
-    CLIENTEXT["Cliente externo<br/>con API token"] --> FASTAPI["FastAPI :8001<br/>solo red interna Docker"]
-    MOSQ --> GPST["gps_tracker<br/>Redis + batch PostgreSQL"]
-
-    DJANGO --> PG[("PostgreSQL + PostGIS")]
-    DJANGO --> REDIS[("Redis")]
-    DJANGO --> MONGO[("MongoDB")]
-    FASTAPI --> PG
-    FASTAPI --> REDIS
-    GPST --> REDIS
-    GPST --> PG
-
-    CELERY["Celery Beat 60s<br/>check_field_alerts"] --> REDIS
-    CELERY --> FCMOUT["FCM push a Flutter"]
-
-    ING2["ingestor (1h)"] --> PG
-    TRAIN2["trainer (manual)"] --> PG
-    PRED2["predictor (1h)"] --> PG
-    WATCH["watchdog"] --> PG
-    TGBOT["telegram_bot (5min)"] --> PG
-
-    classDef cliente fill:#e0e7ff,stroke:#4338ca,color:#000
-    classDef gateway fill:#fef3c7,stroke:#b45309,color:#000
-    classDef app fill:#dbeafe,stroke:#1d4ed8,color:#000
-    classDef datos fill:#d1fae5,stroke:#047857,color:#000
-    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
-    classDef worker fill:#ede9fe,stroke:#6d28d9,color:#000
-    class BROWSER,FLUTTER,CLIENTEXT cliente
-    class NGINX,MOSQ gateway
-    class DJANGO,FASTAPI app
-    class PG,REDIS,MONGO datos
-    class GPST,CELERY,FCMOUT campo
-    class ING2,TRAIN2,PRED2,WATCH,TGBOT worker
-```
+![arquitectura sistema](docs/diagrams/02-arquitectura-sistema.png)
 
 > FastAPI nunca pasa por nginx ni se expone públicamente — solo lo alcanzan clientes con un API token dentro de la red interna de Docker.
 
@@ -133,21 +73,7 @@ Td ≈ T - (100 - RH) / 5   [aproximación Magnus, válida para RH > 50%]
 
 Metodología estándar de proyectos de Machine Learning, en 6 fases que van de "qué problema resolvemos" a "el modelo ya está prediciendo en producción":
 
-```mermaid
-flowchart TD
-    P1["1. Business Understanding<br/>¿Hay riesgo de tormenta en la próxima hora?<br/>(predicción binaria, alineada a escala SENAMHI)"]
-    P2["2. Data Understanding<br/>Histórico 2024-2025 de Open-Meteo<br/>por cada estación · 5 variables físicas"]
-    P3["3. Data Preparation<br/>prepare.py"]
-    P4["4. Modeling<br/>train.py"]
-    P5["5. Evaluation<br/>benchmark.py + calibrate.py"]
-    P6["6. Deployment<br/>predict.py — ciclo horario en producción"]
-
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6
-    P6 -.->|"re-entrenar con datos nuevos"| P3
-
-    classDef fase fill:#ede9fe,stroke:#6d28d9,color:#000
-    class P1,P2,P3,P4,P5,P6 fase
-```
+![crisp dm fases](docs/diagrams/03-crisp-dm-fases.png)
 
 **[3] Data Preparation** — limpieza y normalización antes de entrenar:
 - Quita valores fuera de rango físico: temperatura (-20, 50°C), humedad (0-100%), presión (500-1100 hPa), CAPE (0-10000 J/kg), K-Index (-20, 60)
@@ -159,17 +85,11 @@ flowchart TD
 
 **MLP** — ve solo el momento actual:
 
-```mermaid
-flowchart LR
-    I1["Input<br/>5 variables"] --> D1["Dense 64"] --> DR1["Dropout 0.2"] --> D2["Dense 32"] --> DR2["Dropout 0.2"] --> D3["Dense 16"] --> O1["Sigmoid<br/>0 a 1"]
-```
+![crisp dm mlp](docs/diagrams/04-crisp-dm-mlp.png)
 
 **LSTM** — ve las últimas 6 horas, con memoria:
 
-```mermaid
-flowchart LR
-    I2["Input<br/>6 horas × 5 variables"] --> L1["LSTM 64"] --> DR3["Dropout 0.2"] --> D4["Dense 32"] --> DR4["Dropout 0.2"] --> O2["Sigmoid<br/>0 a 1"]
-```
+![crisp dm lstm](docs/diagrams/05-crisp-dm-lstm.png)
 
 Ambas usan optimizador Adam (lr=0.001), pérdida `binary_crossentropy`, `EarlyStopping` (para 50 épocas máx., se detiene si no mejora en 8 épocas), batch=64. Al final se comparan por ROC-AUC y **gana la arquitectura que prediga mejor** — no es una decisión manual.
 
@@ -182,15 +102,7 @@ Ambas usan optimizador Adam (lr=0.001), pérdida `binary_crossentropy`, `EarlySt
 
 **[6] Deployment** — esto es lo que corre cada hora en producción (`predictor`):
 
-```mermaid
-flowchart LR
-    A["Cargar el modelo activo<br/>(ModelArtifact.is_active=True)"] --> B["Tomar la última observación<br/>(o últimas 6h si es LSTM)"]
-    B --> C["Predecir probabilidad cruda<br/>raw_prob = model.predict(X)"]
-    C --> D["Calibrar la probabilidad<br/>con Platt Scaling"]
-    D --> E["Asignar nivel SENAMHI<br/>según umbrales de Youden"]
-    E --> F["Calcular SHAP<br/>(por qué este resultado)"]
-    F --> G["Guardar StormAlert<br/>en PostgreSQL"]
-```
+![crisp dm deployment](docs/diagrams/06-crisp-dm-deployment.png)
 
 ### Escala de alertas SENAMHI
 
@@ -203,46 +115,11 @@ flowchart LR
 
 Los umbrales se ajustan automáticamente por Youden's J tras la calibración y se persisten en `ModelArtifact.thresholds_json`.
 
-```mermaid
-flowchart LR
-    P["Probabilidad<br/>calibrada (0-1)"] --> V["< 0.30<br/>🟢 Verde<br/>Sin riesgo"]
-    P --> A["0.30 – 0.60<br/>🟡 Amarillo<br/>Riesgo moderado"]
-    P --> N["0.60 – 0.85<br/>🟠 Naranja<br/>Peligroso"]
-    P --> R["≥ 0.85<br/>🔴 Rojo<br/>Riesgo extremo"]
-
-    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
-    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
-    classDef naranja fill:#fed7aa,stroke:#c2410c,color:#000
-    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
-    class V verde
-    class A amarillo
-    class N naranja
-    class R rojo
-```
+![escala senamhi](docs/diagrams/07-escala-senamhi.png)
 
 ### Flujo de notificación
 
-```mermaid
-sequenceDiagram
-    participant Pred as Predictor
-    participant DB as PostgreSQL
-    participant API as Django API
-    participant Vue as Dashboard (Vue)
-    participant Bot as telegram_bot
-    participant TG as Telegram
-
-    Pred->>DB: INSERT StormAlert
-    API->>DB: GET /api/weather/alerts/
-    API->>Vue: alertas con nivel + color
-    Vue->>Vue: pinta mapa Leaflet
-
-    loop cada TELEGRAM_NOTIFIER_CYCLE_SEC (5 min)
-        Bot->>DB: alertas sin telegram_notified_at
-        Bot->>Bot: filtra suscriptores por department + min_level
-        Bot->>TG: mensaje Markdown ⚡ Nivel X — Estación — prob% — SHAP
-        Bot->>DB: marca telegram_notified_at
-    end
-```
+![flujo notificacion telegram](docs/diagrams/08-flujo-notificacion-telegram.png)
 
 ---
 
@@ -279,27 +156,7 @@ La posición **en vivo** (la de "ahora mismo") no se guarda en PostgreSQL para c
 
 A diferencia del clima (que viene de una API externa, Open-Meteo), los datos de posición GPS vienen de los **propios celulares de los empleados** — son datos generados por el sistema mismo, no una fuente externa. El flujo es:
 
-```mermaid
-sequenceDiagram
-    participant Cel as 📱 Celular del empleado
-    participant MQ as mosquitto (broker MQTT :1883)
-    participant GT as gps_tracker (asyncio)
-    participant R as Redis (vivo, TTL 24h)
-    participant PG as PostgreSQL (histórico)
-
-    loop cada 30 segundos
-        Cel->>MQ: publica posición GPS<br/>{lat, lon, accuracy, ts}
-        MQ->>GT: reenvía (tópico ximbra/+/tracking/+/+/position)
-        GT->>R: HSET tracking:last_position:{tenant_id}<br/>(mapa en vivo lee de aquí)
-        GT->>GT: guarda en buffer en memoria
-    end
-
-    loop cada 10s o cada 500 mensajes acumulados
-        GT->>PG: INSERT por lotes en field_positions
-    end
-
-    Note over GT,MQ: si se pierde la conexión MQTT,<br/>gps_tracker reintenta solo cada 5s
-```
+![flujo datos gps](docs/diagrams/09-flujo-datos-gps.png)
 
 **Tópico MQTT:** `ximbra/{tenant_id}/tracking/employee/{employee_id}/position` — cada celular publica solo a su propio tópico; `gps_tracker` está suscrito al patrón `ximbra/+/tracking/+/+/position` (el `+` es un comodín MQTT) para recibir todos a la vez.
 
@@ -309,28 +166,7 @@ sequenceDiagram
 
 Esta es la tarea Celery `field.check_field_alerts`, programada para correr **cada 60 segundos** (`CELERY_BEAT_SCHEDULE`). Es completamente independiente del modelo de IA — no predice nada nuevo, solo usa las alertas (`StormAlert`) que el `predictor` ya generó y calcula geometría:
 
-```mermaid
-flowchart TD
-    START["⏱ Cada 60 segundos<br/>(Celery Beat)"] --> A["Buscar StormAlert activas<br/>con nivel ≥ 2 (Amarillo o peor)"]
-    A --> B["Leer de Redis la posición<br/>en vivo de cada empleado"]
-    B --> C["Calcular distancia Haversine<br/>empleado ↔ estación más cercana en alerta"]
-    C --> D{"¿Qué tan lejos<br/>está el empleado?"}
-    D -->|"≤ 16 km"| ROJO["🔴 Nivel 4 — Rojo<br/>zumbido continuo"]
-    D -->|"16-32 km"| AMAR["🟡 Nivel 2 — Amarillo<br/>zumbido intermitente"]
-    D -->|"> 32 km"| VERDE["🟢 Nivel 1 — Verde<br/>no se envía nada"]
-    ROJO --> E{"¿Cooldown OK?<br/>(sin push hace < 5 min<br/>con el mismo nivel)"}
-    AMAR --> E
-    E -->|"sí, puede enviar"| F["📲 Enviar push FCM<br/>+ guardar last_alert_level/sent_at"]
-    E -->|"no, ya se le avisó"| G["omitir — evita espamear"]
-    F --> H["Guardar nivel en Redis<br/>tracking:field_alert:{employee_id} (TTL 2h)<br/>→ pinta el anillo de color en el mapa"]
-
-    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
-    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
-    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
-    class ROJO rojo
-    class AMAR amarillo
-    class VERDE verde
-```
+![motor alertas distancia](docs/diagrams/10-motor-alertas-distancia.png)
 
 ### Notificaciones push (FCM) — `backend/apps/field/fcm.py`
 
@@ -455,34 +291,7 @@ celery_beat también dispara `field.check_field_alerts` cada 60 segundos (motor 
 
 ### Multi-tenancy y autenticación
 
-```mermaid
-erDiagram
-    CustomUser ||--o{ UserTenantRole : tiene
-    Tenant ||--o{ UserTenantRole : agrupa
-    Tenant ||--o{ APIToken : "1 activo por owner"
-    Tenant ||--o{ Invitation : invita
-    CustomUser ||--o{ Notification : recibe
-    CustomUser ||--o{ UserSubscription : suscribe
-    Plan ||--o{ UserSubscription : define
-
-    CustomUser {
-        string email "identificador único"
-        bool is_email_verified
-    }
-    Tenant {
-        uuid id
-        string slug "auto-generado único"
-        int max_users "default 10"
-        int rate_limit "req/min"
-    }
-    UserTenantRole {
-        string role "OWNER, ADMIN o MEMBER"
-    }
-    APIToken {
-        string token "texto plano solo al crear"
-        datetime expires_at
-    }
-```
+![modelo multitenancy](docs/diagrams/11-modelo-multitenancy.png)
 
 #### CustomUser
 | Campo | Tipo | Descripción |
@@ -513,96 +322,11 @@ erDiagram
 
 ### Meteorología y ML
 
-```mermaid
-erDiagram
-    Station ||--o{ WeatherObservation : genera
-    Station ||--o{ StormAlert : "tiene alertas"
-    WeatherObservation ||--o| StormAlert : "fue la base de"
-    ModelArtifact ||--o{ StormAlert : "predijo con"
-    ModelArtifact ||--o{ ModelBenchmark : "se evaluó en"
-
-    Station {
-        string code "código SENAMHI"
-        point location "lat, lon"
-        int altitude_m
-        bool is_active
-    }
-    WeatherObservation {
-        datetime observed_at
-        float temperature
-        float humidity
-        float pressure
-        float cape
-        float k_index
-        string source "open-meteo"
-    }
-    StormAlert {
-        float probability "calibrada 0-1"
-        int alert_level "1=Verde .. 4=Rojo"
-        json explanation_json "valores SHAP"
-        datetime notified_at
-        datetime telegram_notified_at
-    }
-    ModelArtifact {
-        uuid id
-        string version
-        string status "training/ready/failed"
-        string best_model_type "mlp o lstm"
-        float accuracy
-        float roc_auc
-        json thresholds_json "umbrales Youden"
-        bool is_active "solo uno a la vez"
-    }
-    ModelBenchmark {
-        string model_type
-        int cv_fold
-        float roc_auc
-    }
-    TelegramSubscription {
-        string chat_id
-        string department "vacío = todos"
-        int min_level
-        bool is_active
-    }
-```
+![modelo meteorologia](docs/diagrams/12-modelo-meteorologia.png)
 
 ### Módulo de Campo (`apps/field/`)
 
-```mermaid
-erDiagram
-    Project }o--o{ Employee : "M2M (empleados asignados)"
-    Project ||--o{ GeoFence : "tiene frentes"
-    Project ||--o{ RefugePoint : "tiene refugios fijos"
-    Employee ||--o| MobileRefuge : "conduce (FK conductor)"
-
-    Project {
-        string name
-        date start_date
-        date end_date
-        bool is_active
-    }
-    Employee {
-        string full_name
-        string document_number
-        string device_id "único, para MQTT"
-        string fcm_token "para el push"
-        int last_alert_level "última alerta recibida"
-        datetime last_alert_sent_at
-    }
-    GeoFence {
-        polygon perimeter "frente de trabajo"
-        bool is_active
-    }
-    MobileRefuge {
-        string code
-        string plate
-        int capacity
-    }
-    RefugePoint {
-        point location "coordenada fija"
-        int capacity
-    }
-```
+![modelo campo](docs/diagrams/13-modelo-campo.png)
 
 `EmployeePosition` es aparte: una fila por cada mensaje GPS recibido (`entity_id`, `entity_type`, `latitude`, `longitude`, `accuracy`, `recorded_at`) — solo para histórico/auditoría, no para el mapa en vivo.
 
@@ -714,35 +438,7 @@ Servicio en puerto **8001** (solo red interna Docker, nunca expuesto al exterior
 
 ### Arquitectura hexagonal
 
-```mermaid
-flowchart TD
-    REQ["HTTP Request"] --> P
-    REQ --> V
-    REQ --> H
-
-    P["process.py<br/>POST /api/v1/process<br/>ejecuta y consume rate limit"] --> PR
-    V["validate.py<br/>GET /api/v1/validate<br/>valida sin consumir"] --> VT
-    H["health — GET /health"]
-
-    PR["process_request.py<br/>validar + consumir + procesar"] --> DOM
-    PR --> PGA
-    PR --> RA
-    VT["validate_token.py<br/>validar sin efecto lateral"] --> DOM
-    CRL["check_rate_limit.py<br/>sliding window"] --> RA
-
-    DOM["app/domain/<br/>entidades puras: api_token, tenant, user"]
-    PGA["postgres_adapter.py<br/>solo lectura, SQLAlchemy Core"]
-    RA["redis_adapter.py<br/>rate limit con ventana deslizante"]
-
-    classDef rutas fill:#e0f2fe,stroke:#0369a1,color:#000
-    classDef casos fill:#dbeafe,stroke:#1d4ed8,color:#000
-    classDef dominio fill:#ede9fe,stroke:#6d28d9,color:#000
-    classDef infra fill:#d1fae5,stroke:#047857,color:#000
-    class P,V,H rutas
-    class PR,VT,CRL casos
-    class DOM dominio
-    class PGA,RA infra
-```
+![fastapi hexagonal](docs/diagrams/14-fastapi-hexagonal.png)
 
 Capas, de afuera hacia adentro: **rutas** (entrada HTTP) → **casos de uso** (`app/application/`) → **dominio** (entidades puras, sin dependencias) y **adaptadores de infraestructura** (`app/infrastructure/`, hablan con PostgreSQL/Redis).
 
@@ -842,23 +538,7 @@ App nativa (`mobile/`) que usan los empleados de campo. No requiere usuario del 
 
 ### Flujo de uso
 
-```mermaid
-flowchart TD
-    A["1. Login<br/>tenant_id + employee_id + nombre"] --> B["Credenciales cifradas<br/>en el celular"]
-    B --> C["2. Pantalla de mapa"]
-    C --> D["Pide permiso de ubicación"]
-    D --> E["Lee el GPS<br/>actualiza si se mueve > 10m"]
-    E --> F["MQTT — publica<br/>posición cada 30s"]
-    C --> G["Suscrito a FCM"]
-    G --> H["Si llega alerta:<br/>vibra + banner de color"]
-    C --> J["Botón Refugios<br/>lista por distancia"]
-    F -.->|"sin internet"| K["Reintenta sola cada 5s"]
-
-    classDef accion fill:#dbeafe,stroke:#1d4ed8,color:#000
-    classDef alerta fill:#fecaca,stroke:#b91c1c,color:#000
-    class H alerta
-    class A,B,C,D,E,F,G,J accion
-```
+![flutter flujo uso](docs/diagrams/15-flutter-flujo-uso.png)
 
 ### Paquetes principales (`pubspec.yaml`)
 
@@ -975,24 +655,11 @@ docker compose run --rm trainer
 
 **Flujo Clima/IA:**
 
-```mermaid
-flowchart LR
-    ING["ingestor<br/>cada 1h"] --> OBS["WeatherObservation"]
-    OBS --> PRD["predictor<br/>cada 1h"] --> SA["StormAlert"]
-    SA --> TGB["telegram_bot<br/>cada 5 min"]
-    TRN["trainer<br/>manual, bajo demanda"] -.->|"activa nuevo modelo"| PRD
-```
+![produccion flujo clima](docs/diagrams/16-produccion-flujo-clima.png)
 
 **Flujo Campo (paralelo e independiente del anterior):**
 
-```mermaid
-flowchart LR
-    FL["App Flutter<br/>cada 30s"] --> GT["gps_tracker"]
-    GT --> RED["Redis vivo"]
-    GT --> PGB["PostgreSQL<br/>lote cada 10s"]
-    CB["Celery Beat<br/>check_field_alerts cada 60s"] --> RED
-    CB -->|"si Roja/Amarilla"| PUSH["FCM push"]
-```
+![produccion flujo campo](docs/diagrams/17-produccion-flujo-campo.png)
 
 | Cuándo | Quién | Qué hace |
 |---|---|---|

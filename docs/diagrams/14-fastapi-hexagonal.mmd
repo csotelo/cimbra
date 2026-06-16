@@ -1,0 +1,27 @@
+flowchart TD
+    REQ["HTTP Request"] --> P
+    REQ --> V
+    REQ --> H
+
+    P["process.py<br/>POST /api/v1/process<br/>ejecuta y consume rate limit"] --> PR
+    V["validate.py<br/>GET /api/v1/validate<br/>valida sin consumir"] --> VT
+    H["health — GET /health"]
+
+    PR["process_request.py<br/>validar + consumir + procesar"] --> DOM
+    PR --> PGA
+    PR --> RA
+    VT["validate_token.py<br/>validar sin efecto lateral"] --> DOM
+    CRL["check_rate_limit.py<br/>sliding window"] --> RA
+
+    DOM["app/domain/<br/>entidades puras: api_token, tenant, user"]
+    PGA["postgres_adapter.py<br/>solo lectura, SQLAlchemy Core"]
+    RA["redis_adapter.py<br/>rate limit con ventana deslizante"]
+
+    classDef rutas fill:#e0f2fe,stroke:#0369a1,color:#000
+    classDef casos fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef dominio fill:#ede9fe,stroke:#6d28d9,color:#000
+    classDef infra fill:#d1fae5,stroke:#047857,color:#000
+    class P,V,H rutas
+    class PR,VT,CRL casos
+    class DOM dominio
+    class PGA,RA infra

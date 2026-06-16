@@ -1,0 +1,15 @@
+flowchart TD
+    A["1. Login<br/>tenant_id + employee_id + nombre"] --> B["Credenciales cifradas<br/>en el celular"]
+    B --> C["2. Pantalla de mapa"]
+    C --> D["Pide permiso de ubicación"]
+    D --> E["Lee el GPS<br/>actualiza si se mueve > 10m"]
+    E --> F["MQTT — publica<br/>posición cada 30s"]
+    C --> G["Suscrito a FCM"]
+    G --> H["Si llega alerta:<br/>vibra + banner de color"]
+    C --> J["Botón Refugios<br/>lista por distancia"]
+    F -.->|"sin internet"| K["Reintenta sola cada 5s"]
+
+    classDef accion fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef alerta fill:#fecaca,stroke:#b91c1c,color:#000
+    class H alerta
+    class A,B,C,D,E,F,G,J accion
