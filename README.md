@@ -86,7 +86,7 @@ flowchart TB
     CELERY["Celery Beat (60s)<br/>field.check_field_alerts"] --> REDIS
     CELERY -->|"si está en zona Roja/Amarilla"| FCMOUT["🔔 FCM push → Flutter"]
 
-    subgraph WORKERS["⚙️ Servicios Python autónomos (ciclos temporales)"]
+    subgraph WORKERS["⚙ Servicios Python autónomos (ciclos temporales)"]
         ING2["ingestor — Open-Meteo → WeatherObservation"]
         TRAIN2["trainer — entrena MLP/LSTM → ModelArtifact"]
         PRED2["predictor — modelo activo → StormAlert"]
@@ -139,12 +139,12 @@ Metodología estándar de proyectos de Machine Learning, en 6 fases que van de "
 
 ```mermaid
 flowchart TD
-    P1["1️⃣ Business Understanding<br/>¿Hay riesgo de tormenta en la próxima hora?<br/>(predicción binaria, alineada a escala SENAMHI)"]
-    P2["2️⃣ Data Understanding<br/>Histórico 2024-2025 de Open-Meteo<br/>por cada estación · 5 variables físicas"]
-    P3["3️⃣ Data Preparation<br/>prepare.py"]
-    P4["4️⃣ Modeling<br/>train.py"]
-    P5["5️⃣ Evaluation<br/>benchmark.py + calibrate.py"]
-    P6["6️⃣ Deployment<br/>predict.py — ciclo horario en producción"]
+    P1["1. Business Understanding<br/>¿Hay riesgo de tormenta en la próxima hora?<br/>(predicción binaria, alineada a escala SENAMHI)"]
+    P2["2. Data Understanding<br/>Histórico 2024-2025 de Open-Meteo<br/>por cada estación · 5 variables físicas"]
+    P3["3. Data Preparation<br/>prepare.py"]
+    P4["4. Modeling<br/>train.py"]
+    P5["5. Evaluation<br/>benchmark.py + calibrate.py"]
+    P6["6. Deployment<br/>predict.py — ciclo horario en producción"]
 
     P1 --> P2 --> P3 --> P4 --> P5 --> P6
     P6 -.->|"re-entrenar con datos nuevos"| P3
@@ -313,7 +313,7 @@ Esta es la tarea Celery `field.check_field_alerts`, programada para correr **cad
 
 ```mermaid
 flowchart TD
-    START["⏱️ Cada 60 segundos<br/>(Celery Beat)"] --> A["Buscar StormAlert activas<br/>con nivel ≥ 2 (Amarillo o peor)"]
+    START["⏱ Cada 60 segundos<br/>(Celery Beat)"] --> A["Buscar StormAlert activas<br/>con nivel ≥ 2 (Amarillo o peor)"]
     A --> B["Leer de Redis la posición<br/>en vivo de cada empleado"]
     B --> C["Calcular distancia Haversine<br/>empleado ↔ estación más cercana en alerta"]
     C --> D{"¿Qué tan lejos<br/>está el empleado?"}
@@ -857,8 +857,8 @@ App nativa (`mobile/`) que usan los empleados de campo. No requiere usuario del 
 
 ```mermaid
 flowchart TD
-    A["1️⃣ Login<br/>ingresa tenant_id + employee_id + nombre<br/>(datos que da el administrador)"] --> B["Se guardan cifrados<br/>en el celular (flutter_secure_storage)"]
-    B --> C["2️⃣ Pantalla de mapa se abre"]
+    A["1. Login<br/>ingresa tenant_id + employee_id + nombre<br/>(datos que da el administrador)"] --> B["Se guardan cifrados<br/>en el celular (flutter_secure_storage)"]
+    B --> C["2. Pantalla de mapa se abre"]
     C --> D["Pide permiso de ubicación"]
     D --> E["Lee el GPS<br/>(alta precisión, actualiza si se mueve > 10m)"]
     E --> F["Se conecta a MQTT<br/>publica posición cada 30s"]
@@ -991,7 +991,7 @@ docker compose run --rm trainer
 
 ```mermaid
 flowchart LR
-    subgraph CLIMA["🌦️ Flujo Clima/IA"]
+    subgraph CLIMA["🌦 Flujo Clima/IA"]
         direction TB
         ING["ingestor<br/>(cada 1h)"] --> OBS["WeatherObservation"]
         OBS --> PRD["predictor<br/>(cada 1h)"] --> SA["StormAlert"]
