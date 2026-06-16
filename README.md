@@ -63,49 +63,45 @@ El módulo de Campo añade un segundo flujo de datos, independiente del meteorol
 
 ```mermaid
 flowchart TB
-    subgraph CLIENTES["💻📱 Clientes"]
-        BROWSER["Browser<br/>Vue 3 SPA"]
-        FLUTTER["App Flutter<br/>(empleados de campo)"]
-    end
-
-    BROWSER -->|"HTTP :80"| NGINX["nginx<br/>/ → SPA · /api/* → django:8000"]
-    FLUTTER -->|"MQTT :1883<br/>(único puerto de campo expuesto)"| MOSQ["mosquitto<br/>(broker MQTT)"]
+    BROWSER["Browser<br/>Vue 3 SPA"] -->|"HTTP :80"| NGINX["nginx"]
+    FLUTTER["App Flutter<br/>empleados de campo"] -->|"MQTT :1883"| MOSQ["mosquitto<br/>broker MQTT"]
 
     NGINX --> DJANGO["Django :8000<br/>DRF + Channels + Admin + JWT"]
-    NGINX -.-> FASTAPI["FastAPI :8001<br/>(arquitectura hexagonal)<br/>solo red interna"]
-    MOSQ --> GPST["gps_tracker (asyncio)<br/>Redis + batch PostgreSQL"]
+    CLIENTEXT["Cliente externo<br/>con API token"] --> FASTAPI["FastAPI :8001<br/>solo red interna Docker"]
+    MOSQ --> GPST["gps_tracker<br/>Redis + batch PostgreSQL"]
 
-    DJANGO --> PG[("PostgreSQL + PostGIS<br/>datos relacionales/geo")]
-    DJANGO --> REDIS[("Redis<br/>cache · broker · posiciones vivo")]
-    DJANGO --> MONGO[("MongoDB<br/>datos documentales")]
+    DJANGO --> PG[("PostgreSQL + PostGIS")]
+    DJANGO --> REDIS[("Redis")]
+    DJANGO --> MONGO[("MongoDB")]
     FASTAPI --> PG
     FASTAPI --> REDIS
     GPST --> REDIS
     GPST --> PG
 
-    CELERY["Celery Beat (60s)<br/>field.check_field_alerts"] --> REDIS
-    CELERY -->|"si está en zona Roja/Amarilla"| FCMOUT["🔔 FCM push → Flutter"]
+    CELERY["Celery Beat 60s<br/>check_field_alerts"] --> REDIS
+    CELERY --> FCMOUT["FCM push a Flutter"]
 
-    subgraph WORKERS["⚙ Servicios Python autónomos (ciclos temporales)"]
-        ING2["ingestor — Open-Meteo → WeatherObservation"]
-        TRAIN2["trainer — entrena MLP/LSTM → ModelArtifact"]
-        PRED2["predictor — modelo activo → StormAlert"]
-        WATCH["watchdog — heartbeats → estado de servicios"]
-        TGBOT["telegram_bot — StormAlert → Telegram API"]
-    end
-    WORKERS --> PG
+    ING2["ingestor (1h)"] --> PG
+    TRAIN2["trainer (manual)"] --> PG
+    PRED2["predictor (1h)"] --> PG
+    WATCH["watchdog"] --> PG
+    TGBOT["telegram_bot (5min)"] --> PG
 
     classDef cliente fill:#e0e7ff,stroke:#4338ca,color:#000
     classDef gateway fill:#fef3c7,stroke:#b45309,color:#000
     classDef app fill:#dbeafe,stroke:#1d4ed8,color:#000
     classDef datos fill:#d1fae5,stroke:#047857,color:#000
     classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
-    class BROWSER,FLUTTER cliente
+    classDef worker fill:#ede9fe,stroke:#6d28d9,color:#000
+    class BROWSER,FLUTTER,CLIENTEXT cliente
     class NGINX,MOSQ gateway
     class DJANGO,FASTAPI app
     class PG,REDIS,MONGO datos
     class GPST,CELERY,FCMOUT campo
+    class ING2,TRAIN2,PRED2,WATCH,TGBOT worker
 ```
+
+> FastAPI nunca pasa por nginx ni se expone públicamente — solo lo alcanzan clientes con un API token dentro de la red interna de Docker.
 
 ---
 
@@ -161,16 +157,18 @@ flowchart TD
 
 **[4] Modeling** — se entrenan dos arquitecturas distintas y se comparan:
 
+**MLP** — ve solo el momento actual:
+
 ```mermaid
 flowchart LR
-    subgraph MLP["MLP — ve solo el momento actual"]
-        direction LR
-        I1["Input (5 variables)"] --> D1["Dense 64"] --> DR1["Dropout 0.2"] --> D2["Dense 32"] --> DR2["Dropout 0.2"] --> D3["Dense 16"] --> O1["Sigmoid (0-1)"]
-    end
-    subgraph LSTM["LSTM — ve las últimas 6 horas (memoria)"]
-        direction LR
-        I2["Input (6 horas × 5 variables)"] --> L1["LSTM 64"] --> DR3["Dropout 0.2"] --> D4["Dense 32"] --> DR4["Dropout 0.2"] --> O2["Sigmoid (0-1)"]
-    end
+    I1["Input<br/>5 variables"] --> D1["Dense 64"] --> DR1["Dropout 0.2"] --> D2["Dense 32"] --> DR2["Dropout 0.2"] --> D3["Dense 16"] --> O1["Sigmoid<br/>0 a 1"]
+```
+
+**LSTM** — ve las últimas 6 horas, con memoria:
+
+```mermaid
+flowchart LR
+    I2["Input<br/>6 horas × 5 variables"] --> L1["LSTM 64"] --> DR3["Dropout 0.2"] --> D4["Dense 32"] --> DR4["Dropout 0.2"] --> O2["Sigmoid<br/>0 a 1"]
 ```
 
 Ambas usan optimizador Adam (lr=0.001), pérdida `binary_crossentropy`, `EarlyStopping` (para 50 épocas máx., se detiene si no mejora en 8 épocas), batch=64. Al final se comparan por ROC-AUC y **gana la arquitectura que prediga mejor** — no es una decisión manual.
@@ -416,39 +414,27 @@ El endpoint `GET /api/field/tracking/live/` lee directamente de Redis (no de Pos
 
 ## Servicios y contenedores
 
-```mermaid
-flowchart TB
-    NET(("ximbra_app_network<br/>(bridge Docker)"))
+Todos los contenedores comparten la red Docker `ximbra_app_network` (bridge):
 
-    NET --> vue["vue — nginx, SPA compilada<br/>proxy /api/ → django:8000"]
-    NET --> django["django — gunicorn + UvicornWorker"]
-    NET --> cw["celery_worker — tareas async"]
-    NET --> cb["celery_beat — scheduler periódico"]
-    NET --> apiauth["apiauth — FastAPI, tokens + rate limit"]
-    NET --> postgres[("postgres — PostGIS")]
-    NET --> redis[("redis — broker/cache/pub-sub")]
-    NET --> mongodb[("mongodb — documentos")]
-    NET --> minio[("minio — object storage")]
-    NET --> minio_init["minio_init — one-shot bucket"]
-
-    NET --> ingestor["ingestor — ciclo 1h<br/>Open-Meteo → PostgreSQL"]
-    NET --> predictor["predictor — ciclo 1h<br/>modelo activo → StormAlert"]
-    NET --> trainer["trainer — one-shot manual<br/>entrena MLP/LSTM"]
-    NET --> watchdog["watchdog — ciclo continuo<br/>heartbeats Redis"]
-    NET --> telegram_bot["telegram_bot — ciclo 5min"]
-
-    NET --> mosquitto["mosquitto — broker MQTT<br/>(único puerto de campo expuesto)"]
-    NET --> gps_tracker["gps_tracker — ciclo continuo<br/>MQTT → Redis + PostgreSQL"]
-
-    classDef web fill:#dbeafe,stroke:#1d4ed8,color:#000
-    classDef datos fill:#d1fae5,stroke:#047857,color:#000
-    classDef ia fill:#ede9fe,stroke:#6d28d9,color:#000
-    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
-    class vue,django,cw,cb,apiauth web
-    class postgres,redis,mongodb,minio,minio_init datos
-    class ingestor,predictor,trainer,watchdog,telegram_bot ia
-    class mosquitto,gps_tracker campo
-```
+| Grupo | Contenedor | Rol |
+|---|---|---|
+| 🌐 Web | `vue` | nginx — SPA compilada, proxy `/api/` → `django:8000` |
+| 🌐 Web | `django` | gunicorn + UvicornWorker |
+| 🌐 Web | `celery_worker` | tareas async |
+| 🌐 Web | `celery_beat` | scheduler periódico |
+| 🌐 Web | `apiauth` | FastAPI — tokens + rate limit |
+| 💾 Datos | `postgres` | PostGIS |
+| 💾 Datos | `redis` | broker / caché / pub-sub |
+| 💾 Datos | `mongodb` | documentos |
+| 💾 Datos | `minio` | object storage |
+| 💾 Datos | `minio_init` | one-shot — crea el bucket |
+| 🧠 IA/Clima | `ingestor` | ciclo 1h — Open-Meteo → PostgreSQL |
+| 🧠 IA/Clima | `predictor` | ciclo 1h — modelo activo → StormAlert |
+| 🧠 IA/Clima | `trainer` | one-shot manual — entrena MLP/LSTM |
+| 🧠 IA/Clima | `watchdog` | ciclo continuo — heartbeats Redis |
+| 🧠 IA/Clima | `telegram_bot` | ciclo 5 min |
+| 📍 Campo | `mosquitto` | broker MQTT — único puerto de campo expuesto |
+| 📍 Campo | `gps_tracker` | ciclo continuo — MQTT → Redis + PostgreSQL |
 
 celery_beat también dispara `field.check_field_alerts` cada 60 segundos (motor de distancia del módulo de Campo, ver sección dedicada).
 
@@ -730,34 +716,35 @@ Servicio en puerto **8001** (solo red interna Docker, nunca expuesto al exterior
 
 ```mermaid
 flowchart TD
-    REQ["HTTP Request"] --> ROUTES
+    REQ["HTTP Request"] --> P
+    REQ --> V
+    REQ --> H
 
-    subgraph ROUTES["app/api/routes/ — entrada HTTP"]
-        P["process.py<br/>POST /api/v1/process<br/>ejecuta y consume rate limit"]
-        V["validate.py<br/>GET /api/v1/validate<br/>valida sin consumir"]
-        H["health — GET /health"]
-    end
+    P["process.py<br/>POST /api/v1/process<br/>ejecuta y consume rate limit"] --> PR
+    V["validate.py<br/>GET /api/v1/validate<br/>valida sin consumir"] --> VT
+    H["health — GET /health"]
 
-    ROUTES --> APP
+    PR["process_request.py<br/>validar + consumir + procesar"] --> DOM
+    PR --> PGA
+    PR --> RA
+    VT["validate_token.py<br/>validar sin efecto lateral"] --> DOM
+    CRL["check_rate_limit.py<br/>sliding window"] --> RA
 
-    subgraph APP["app/application/ — casos de uso"]
-        PR["process_request.py<br/>validar + consumir + procesar"]
-        VT["validate_token.py<br/>validar sin efecto lateral"]
-        CRL["check_rate_limit.py<br/>sliding window"]
-    end
+    DOM["app/domain/<br/>entidades puras: api_token, tenant, user"]
+    PGA["postgres_adapter.py<br/>solo lectura, SQLAlchemy Core"]
+    RA["redis_adapter.py<br/>rate limit con ventana deslizante"]
 
-    APP --> DOM["app/domain/<br/>entidades puras: api_token, tenant,<br/>user, user_tenant_role<br/>(sin dependencias de infraestructura)"]
-
-    APP --> INFRA
-
-    subgraph INFRA["app/infrastructure/ — adaptadores"]
-        PGA["postgres_adapter.py<br/>solo lectura, SQLAlchemy Core"]
-        RA["redis_adapter.py<br/>rate limit con ventana deslizante"]
-    end
-
-    classDef capa fill:#e0f2fe,stroke:#0369a1,color:#000
-    class ROUTES,APP,DOM,INFRA capa
+    classDef rutas fill:#e0f2fe,stroke:#0369a1,color:#000
+    classDef casos fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef dominio fill:#ede9fe,stroke:#6d28d9,color:#000
+    classDef infra fill:#d1fae5,stroke:#047857,color:#000
+    class P,V,H rutas
+    class PR,VT,CRL casos
+    class DOM dominio
+    class PGA,RA infra
 ```
+
+Capas, de afuera hacia adentro: **rutas** (entrada HTTP) → **casos de uso** (`app/application/`) → **dominio** (entidades puras, sin dependencias) y **adaptadores de infraestructura** (`app/infrastructure/`, hablan con PostgreSQL/Redis).
 
 **Headers aceptados:**
 - `Authorization: Bearer <token>`
@@ -857,22 +844,19 @@ App nativa (`mobile/`) que usan los empleados de campo. No requiere usuario del 
 
 ```mermaid
 flowchart TD
-    A["1. Login<br/>ingresa tenant_id + employee_id + nombre<br/>(datos que da el administrador)"] --> B["Se guardan cifrados<br/>en el celular (flutter_secure_storage)"]
-    B --> C["2. Pantalla de mapa se abre"]
+    A["1. Login<br/>tenant_id + employee_id + nombre"] --> B["Credenciales cifradas<br/>en el celular"]
+    B --> C["2. Pantalla de mapa"]
     C --> D["Pide permiso de ubicación"]
-    D --> E["Lee el GPS<br/>(alta precisión, actualiza si se mueve > 10m)"]
-    E --> F["Se conecta a MQTT<br/>publica posición cada 30s"]
-    C --> G["Se suscribe a FCM"]
-    G --> H{"¿Llega una alerta?"}
-    H -->|"sí"| I["Vibra según nivel<br/>+ banner de color en pantalla"]
-    H -->|"no"| C
-    C --> J["Botón 'Refugios'<br/>lista ordenada por distancia"]
-
-    F -.->|"sin internet/MQTT caído"| K["Reintenta sola cada 5s<br/>sin intervención del empleado"]
+    D --> E["Lee el GPS<br/>actualiza si se mueve > 10m"]
+    E --> F["MQTT — publica<br/>posición cada 30s"]
+    C --> G["Suscrito a FCM"]
+    G --> H["Si llega alerta:<br/>vibra + banner de color"]
+    C --> J["Botón Refugios<br/>lista por distancia"]
+    F -.->|"sin internet"| K["Reintenta sola cada 5s"]
 
     classDef accion fill:#dbeafe,stroke:#1d4ed8,color:#000
     classDef alerta fill:#fecaca,stroke:#b91c1c,color:#000
-    class I alerta
+    class H alerta
     class A,B,C,D,E,F,G,J accion
 ```
 
@@ -989,29 +973,25 @@ docker compose run --rm trainer
 
 ### Flujo de datos completo en producción
 
+**Flujo Clima/IA:**
+
 ```mermaid
 flowchart LR
-    subgraph CLIMA["🌦 Flujo Clima/IA"]
-        direction TB
-        ING["ingestor<br/>(cada 1h)"] --> OBS["WeatherObservation"]
-        OBS --> PRD["predictor<br/>(cada 1h)"] --> SA["StormAlert"]
-        SA --> TGB["telegram_bot<br/>(cada 5 min)"]
-        TRN["trainer<br/>(manual, bajo demanda)"] -.->|"activa nuevo modelo"| PRD
-    end
+    ING["ingestor<br/>cada 1h"] --> OBS["WeatherObservation"]
+    OBS --> PRD["predictor<br/>cada 1h"] --> SA["StormAlert"]
+    SA --> TGB["telegram_bot<br/>cada 5 min"]
+    TRN["trainer<br/>manual, bajo demanda"] -.->|"activa nuevo modelo"| PRD
+```
 
-    subgraph CAMPO["📍 Flujo Campo (paralelo, independiente)"]
-        direction TB
-        FL["App Flutter<br/>(cada 30s)"] --> GT["gps_tracker"]
-        GT --> RED["Redis (vivo)"]
-        GT --> PGB["PostgreSQL<br/>(lote cada 10s)"]
-        CB["Celery Beat<br/>field.check_field_alerts (cada 60s)"] --> RED
-        CB -->|"si Roja/Amarilla"| PUSH["FCM push"]
-    end
+**Flujo Campo (paralelo e independiente del anterior):**
 
-    classDef clima fill:#dbeafe,stroke:#1d4ed8,color:#000
-    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
-    class ING,OBS,PRD,SA,TGB,TRN clima
-    class FL,GT,RED,PGB,CB,PUSH campo
+```mermaid
+flowchart LR
+    FL["App Flutter<br/>cada 30s"] --> GT["gps_tracker"]
+    GT --> RED["Redis vivo"]
+    GT --> PGB["PostgreSQL<br/>lote cada 10s"]
+    CB["Celery Beat<br/>check_field_alerts cada 60s"] --> RED
+    CB -->|"si Roja/Amarilla"| PUSH["FCM push"]
 ```
 
 | Cuándo | Quién | Qué hace |
