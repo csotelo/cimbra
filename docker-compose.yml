@@ -10,6 +10,7 @@ volumes:
   pip_cache:
   minio_data:
   model_data:
+  mosquitto_data:
 
 services:
   postgres:
@@ -369,6 +370,60 @@ services:
       resources:
         limits:
           memory: 256m
+          cpus: "0.25"
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h 127.0.0.1 -p 1883 -t _health -m ping -q 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+    restart: unless-stopped
+
+  gps_tracker:
+    build:
+      context: ./gps_tracker
+      dockerfile: Dockerfile
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-ximbra_redis_secret}@redis:6379
+      - DB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-multitenant_db}
+      - BATCH_INTERVAL_SEC=10
+      - BATCH_SIZE=500
+    networks:
+      - app_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 128m
           cpus: "0.25"
     restart: unless-stopped
     logging:

@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from .models import Employee, GeoFence, Project
+from .models import Employee, GeoFence, MobileRefuge, Project
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
@@ -85,3 +85,18 @@ class GeoFenceGeoSerializer(GeoFeatureModelSerializer):
         model = GeoFence
         geo_field = "perimeter"
         fields = ["id", "name", "project", "project_name", "is_active"]
+
+
+class MobileRefugeSerializer(serializers.ModelSerializer):
+    conductor_name = serializers.CharField(source="conductor.full_name", read_only=True, allow_null=True)
+    project_name = serializers.CharField(source="project.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = MobileRefuge
+        fields = [
+            "id", "code", "plate", "capacity",
+            "conductor", "conductor_name",
+            "project", "project_name",
+            "is_active", "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "conductor_name", "project_name"]

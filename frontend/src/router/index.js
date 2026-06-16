@@ -135,6 +135,18 @@ const routes = [
                 meta: { requiresAuth: true, menu: true, label: "Frentes de Trabajo", order: 3, group: "campo", groupLabel: "Campo", groupOrder: 20 },
             },
             {
+                path: "campo/refugios-moviles",
+                name: "mobile-refuge-list",
+                component: () => import("@/views/field/MobileRefugeList.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Refugios Móviles", order: 4, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
+                path: "campo/rastreo",
+                name: "tracking-map",
+                component: () => import("@/views/field/TrackingMap.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Rastreo GPS", order: 5, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
                 path: "configuracion",
                 name: "site-settings",
                 component: () => import("@/views/admin/SiteSettings.vue"),

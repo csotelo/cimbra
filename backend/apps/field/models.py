@@ -1,4 +1,4 @@
-"""Field operations models: employees, projects, and geo-fences."""
+"""Field operations models: employees, projects, geo-fences, mobile refuges, positions."""
 
 import uuid
 
@@ -96,3 +96,66 @@ class GeoFence(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.project.name}"
+
+
+class MobileRefuge(models.Model):
+    """Mobile refuge unit (vehicle). Position = conductor's GPS position via MQTT."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="mobile_refuges")
+    code = models.CharField(max_length=50, help_text="Código identificador de la unidad")
+    plate = models.CharField(max_length=20, blank=True, default="", help_text="Placa del vehículo")
+    capacity = models.PositiveSmallIntegerField(default=10, help_text="Capacidad de personas")
+    conductor = models.ForeignKey(
+        Employee,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mobile_refuges",
+        help_text="Empleado conductor — su posición MQTT es la posición de esta unidad",
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mobile_refuges",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "field_mobile_refuges"
+        ordering = ["code"]
+        indexes = [
+            models.Index(fields=["tenant", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.code} ({self.plate or 'sin placa'})"
+
+
+class EmployeePosition(models.Model):
+    """Time-series table for GPS positions received via MQTT from field devices."""
+
+    id = models.BigAutoField(primary_key=True)
+    tenant = models.ForeignKey(
+        Tenant, on_delete=models.CASCADE, related_name="positions", db_index=True
+    )
+    entity_id = models.UUIDField(db_index=True)
+    entity_type = models.CharField(max_length=30)  # "employee"
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    accuracy = models.FloatField(null=True, blank=True)
+    recorded_at = models.DateTimeField()
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "field_positions"
+        ordering = ["-recorded_at"]
+        indexes = [
+            models.Index(fields=["tenant", "entity_id", "-recorded_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.entity_type}:{self.entity_id} @ {self.recorded_at}"

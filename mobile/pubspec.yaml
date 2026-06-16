@@ -1,0 +1,41 @@
+name: ximbra_field
+description: Ximbra — aplicación de campo para empleados. Envía GPS por MQTT y recibe alertas FCM.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # MQTT
+  mqtt_client: ^10.2.1
+
+  # GPS
+  geolocator: ^12.0.0
+  permission_handler: ^11.3.1
+
+  # Mapa
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Almacenamiento seguro de credenciales
+  flutter_secure_storage: ^9.2.2
+
+  # FCM (alertas push — Sprint 4)
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
+
+  # Utils
+  uuid: ^4.4.2
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

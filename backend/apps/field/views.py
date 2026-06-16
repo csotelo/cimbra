@@ -1,18 +1,23 @@
-"""Views for field operations: employees, projects, geo-fences."""
+"""Views for field operations: employees, projects, geo-fences, mobile refuges and live tracking."""
+
+import json
+import os
 
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from core.middleware import get_current_tenant
 from apps.tenants.permissions import IsTenantMember, IsTenantAdmin
 
-from .models import Employee, GeoFence, Project
+from .models import Employee, GeoFence, MobileRefuge, Project
 from .serializers import (
     EmployeeSerializer,
     GeoFenceGeoSerializer,
     GeoFenceSerializer,
+    MobileRefugeSerializer,
     ProjectSerializer,
 )
 
@@ -121,3 +126,94 @@ class GeoFenceViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().filter(is_active=True)
         serializer = GeoFenceGeoSerializer(qs, many=True)
         return Response(serializer.data)
+
+
+class MobileRefugeViewSet(viewsets.ModelViewSet):
+    """CRUD for mobile refuge units scoped to the active tenant."""
+
+    permission_classes = [IsAuthenticated, IsTenantMember]
+    serializer_class = MobileRefugeSerializer
+
+    def get_queryset(self):
+        tenant = get_current_tenant()
+        if not tenant:
+            return MobileRefuge.objects.none()
+        qs = MobileRefuge.objects.filter(tenant=tenant).select_related("conductor", "project")
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == "true")
+        return qs
+
+    def perform_create(self, serializer):
+        tenant = get_current_tenant()
+        serializer.save(tenant=tenant)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsTenantAdmin])
+    def toggle(self, request, pk=None):
+        obj = self.get_object()
+        obj.is_active = not obj.is_active
+        obj.save(update_fields=["is_active"])
+        return Response({"id": str(obj.id), "is_active": obj.is_active})
+
+
+class TrackingLiveView(APIView):
+    """Read live positions from Redis for all field entities in the active tenant."""
+
+    permission_classes = [IsAuthenticated, IsTenantMember]
+
+    def get(self, request):
+        tenant = get_current_tenant()
+        if not tenant:
+            return Response({"positions": []})
+
+        import redis as redis_lib
+
+        redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")
+        r = redis_lib.Redis.from_url(redis_url, decode_responses=True)
+
+        raw = r.hgetall(f"tracking:last_position:{tenant.id}")
+
+        employee_ids = []
+        positions = []
+        for _field, value_str in raw.items():
+            try:
+                data = json.loads(value_str)
+                # Normalise entity_id from the hash field if missing in payload
+                if "entity_id" not in data:
+                    data["entity_id"] = _field.split(":", 1)[-1]
+                if "entity_type" not in data:
+                    data["entity_type"] = _field.split(":", 1)[0]
+                positions.append(data)
+                if data.get("entity_type") == "employee":
+                    employee_ids.append(data["entity_id"])
+            except Exception:
+                continue
+
+        # Enrich with employee names
+        emp_map = {
+            str(e.id): e.full_name
+            for e in Employee.objects.filter(id__in=employee_ids, tenant=tenant)
+        }
+
+        # Map conductor → mobile refuge
+        refuges = (
+            MobileRefuge.objects.filter(tenant=tenant, is_active=True, conductor__isnull=False)
+            .select_related("conductor")
+        )
+        conductor_to_refuge = {str(ref.conductor_id): ref for ref in refuges}
+
+        for pos in positions:
+            eid = pos.get("entity_id", "")
+            pos["label"] = emp_map.get(eid, "Desconocido")
+            if eid in conductor_to_refuge:
+                ref = conductor_to_refuge[eid]
+                pos["mobile_refuge"] = {
+                    "id": str(ref.id),
+                    "code": ref.code,
+                    "plate": ref.plate,
+                    "capacity": ref.capacity,
+                }
+            else:
+                pos["mobile_refuge"] = None
+
+        return Response({"positions": positions})

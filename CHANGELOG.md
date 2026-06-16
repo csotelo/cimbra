@@ -5,6 +5,43 @@ Versioning: MAJOR.MINOR.PATCH — fix = PATCH, feature = MINOR.
 
 ---
 
+## [0.13.0] - 2026-06-15
+
+### Sprint 2 — Rastreo GPS en tiempo real: MQTT + Refugios Móviles + Flutter
+
+#### Backend — nuevos modelos en `field`
+- Modelo `MobileRefuge` — unidad de refugio móvil (UUID, tenant, code, plate, capacity, conductor FK Employee, project FK, is_active). Posición = posición GPS del conductor via MQTT.
+- Modelo `EmployeePosition` — serie temporal de posiciones GPS (BigAutoField, tenant FK, entity_id UUID, entity_type, lat, lon, accuracy, recorded_at, received_at). Índice compuesto (tenant, entity_id, -recorded_at).
+- Migración `field/0002_mobile_refuge_position`
+- `MobileRefugeViewSet` — CRUD + toggle activo/inactivo, filtrado por tenant
+- `TrackingLiveView` (`GET /api/field/tracking/live/`) — lee HGETALL de Redis `tracking:last_position:{tenant_id}`, enriquece con nombres de empleados y refugio móvil asociado si el conductor coincide
+- Admin: `MobileRefugeAdmin`
+
+#### Infraestructura — servicios nuevos en docker-compose
+- `mosquitto` — eclipse-mosquitto:2, port `${MQTT_PORT:-1883}:1883` expuesto externamente para dispositivos móviles de campo
+- `mosquitto/mosquitto.conf` — allow_anonymous true, persistencia en volumen `mosquitto_data`
+- `gps_tracker` — servicio Python asyncio (aiomqtt + asyncpg + redis):
+  - Suscribe topic `ximbra/+/tracking/+/+/position`
+  - Escribe posición actual en Redis Hash `tracking:last_position:{tenant_id}` (TTL 24 h)
+  - Buffer en memoria, escribe en lote a `field_positions` cada 10 s o 500 mensajes
+  - Auto-reconexión MQTT ante desconexiones
+
+#### Frontend — módulo Campo
+- `MobileRefugeList.vue` — CRUD de unidades (código, placa, capacidad, conductor, proyecto), toggle activo/inactivo
+- `TrackingMap.vue` — mapa Leaflet en tiempo real: polling `/api/field/tracking/live/` cada 5 s, marcadores diferenciados (índigo = empleado, naranja = refugio móvil), panel lateral con posiciones, centrar al hacer clic
+- Rutas nuevas: `/campo/refugios-moviles`, `/campo/rastreo`
+
+#### Móvil — app Flutter `mobile/`
+- `pubspec.yaml` — deps: mqtt_client, geolocator, flutter_map, latlong2, flutter_secure_storage, firebase_core/messaging
+- `main.dart` — router de splash que verifica credenciales guardadas
+- `screens/login_screen.dart` — ingresa tenant_id, employee_id, nombre (guarda en secure storage)
+- `screens/map_screen.dart` — mapa FlutterMap con posición propia, publica GPS por MQTT cada 30 s
+- `services/location_service.dart` — GPS stream con geolocator (alta precisión, filtro 10 m)
+- `services/mqtt_service.dart` — cliente MQTT, publica JSON `{lat, lon, accuracy, ts}` al topic configurado
+- `config/app_config.dart` — MQTT_HOST/PORT configurables por env en build time
+
+---
+
 ## [0.12.0] - 2026-06-15
 
 ### Sprint 1 — Campo: Empleados, Proyectos y Frentes de Trabajo (US29/US30/US31)
