@@ -31,20 +31,28 @@ Ximbra ingiere variables meteorológicas horarias de la API pública **Open-Mete
 
 La plataforma es multi-tenant con aislamiento lógico: múltiples organizaciones comparten la misma base de datos con separación por software.
 
-```
-Open-Meteo API ──► Ingestor ──► PostgreSQL/PostGIS ──► Predictor ──► StormAlerts
-                                                              │
-                                                        Trainer (ML)
-                                                              │
-                                                     Django Admin + Vue SPA
-                                                              │
-                                          ┌───────────────────┴───────────────────┐
-                                          │                                       │
-                                   Telegram Bot                     Motor de alertas de Campo
-                                                                     (distancia empleado↔estación)
-                                                                              │
-                                                                    FCM push ──► App Flutter
-                                                                                  (zumbido)
+```mermaid
+flowchart LR
+    OM["🌐 Open-Meteo API<br/>(datos del clima)"] --> ING["Ingestor"]
+    ING --> DB[("PostgreSQL<br/>+ PostGIS")]
+    DB --> PRED["Predictor<br/>(red neuronal MLP/LSTM)"]
+    PRED --> SA["⚡ StormAlert<br/>generada"]
+    DB -.entrena.-> TRAIN["Trainer (ML)"]
+    TRAIN -.activa modelo.-> PRED
+    SA --> WEB["Django Admin +<br/>Vue SPA (dashboard)"]
+    SA --> TG["🤖 Telegram Bot"]
+    SA --> ENGINE["📍 Motor de alertas de Campo<br/>(distancia empleado↔estación)"]
+    ENGINE --> FCM["🔔 FCM push"]
+    FCM --> APP["📱 App Flutter<br/>(zumbido + banner)"]
+
+    classDef ext fill:#fde68a,stroke:#b45309,color:#000
+    classDef ai fill:#bfdbfe,stroke:#1d4ed8,color:#000
+    classDef alert fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef out fill:#bbf7d0,stroke:#15803d,color:#000
+    class OM ext
+    class PRED,TRAIN ai
+    class SA,ENGINE alert
+    class WEB,TG,FCM,APP out
 ```
 
 El módulo de Campo añade un segundo flujo de datos, independiente del meteorológico: dispositivos móviles de trabajadores envían su posición GPS por MQTT en tiempo real, y un motor calcula su distancia a la estación con alerta activa más cercana para decidir si deben recibir una notificación push con zumbido. Ver el detalle completo en [Módulo de Campo](#módulo-de-campo--gps-mqtt-y-alertas-móviles).
@@ -53,44 +61,50 @@ El módulo de Campo añade un segundo flujo de datos, independiente del meteorol
 
 ## Arquitectura del sistema
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  CLIENTE (Browser)                          App móvil Flutter (campo)   │
-│  Vue 3 SPA — Tailwind CSS — Pinia — Axios    GPS + MQTT + FCM            │
-└───────────────────────────┬───────────────────────────┬─────────────────┘
-                            │ HTTP :80                  │ MQTT :1883
-┌───────────────────────────▼───────────────┐  ┌─────────▼─────────────────┐
-│  nginx (vue container)                     │  │  mosquitto (broker MQTT)  │
-│  /         → static SPA                    │  │  expuesto al exterior     │
-│  /api/*    → proxy_pass http://django:8000 │  │  para dispositivos campo  │
-│  /ws/*     → proxy_pass ws://django:8000   │  └─────────┬─────────────────┘
-└─────────┬───────────────────────────────────┘            │ pub/sub posiciones
-          │ red interna ximbra_app_network                 │
-          │                                       ┌─────────▼─────────────────┐
-┌─────────▼──────────┐    ┌──────────────────┐    │  gps_tracker (asyncio)    │
-│  Django :8000      │    │  FastAPI :8001    │    │  Redis hash posición      │
-│  DRF + Channels    │    │  Hexagonal arch.  │    │  Batch insert PostgreSQL  │
-│  Admin (Unfold)    │    │  Token validation │    └─────────┬─────────────────┘
-│  JWT Auth          │    │  Rate limiting    │              │
-└────────┬───────────┘    └────────┬──────────┘    ┌─────────▼─────────────────┐
-         │                         │                │  Celery Beat (60s)        │
-┌────────▼─────────────────────────▼────────────────┤  field.check_field_alerts │
-│  PostgreSQL + PostGIS :5432   Redis :6379    Mongo │  distancia → FCM push     │
-│  Datos relacionales           Cache/Broker   DB    └────────────────────────────┘
-│  Geometrías estaciones        Pub/Sub posiciones
-│  Observaciones/Alertas        Rate limits / alert level por empleado
-└────────┬──────────────────────────────────────────────────────────────┘
-         │
-┌────────▼─────────────────────────────────────────────────────────────────┐
-│  Servicios Python autónomos (ciclos temporales)                          │
-│                                                                          │
-│  ingestor    → Open-Meteo → WeatherObservation (cada INGESTOR_CYCLE_SEC) │
-│  trainer     → PostgreSQL → ModelArtifact .keras + scaler.pkl            │
-│  predictor   → modelo activo → StormAlert (cada PREDICTOR_CYCLE_SEC)     │
-│  watchdog    → heartbeats Redis → estado de servicios                    │
-│  telegram_bot → StormAlert pendientes → Telegram API                     │
-│  gps_tracker → MQTT positions → Redis + PostgreSQL (batch)               │
-└──────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph CLIENTES["💻📱 Clientes"]
+        BROWSER["Browser<br/>Vue 3 SPA"]
+        FLUTTER["App Flutter<br/>(empleados de campo)"]
+    end
+
+    BROWSER -->|"HTTP :80"| NGINX["nginx<br/>/ → SPA · /api/* → django:8000"]
+    FLUTTER -->|"MQTT :1883<br/>(único puerto de campo expuesto)"| MOSQ["mosquitto<br/>(broker MQTT)"]
+
+    NGINX --> DJANGO["Django :8000<br/>DRF + Channels + Admin + JWT"]
+    NGINX -.-> FASTAPI["FastAPI :8001<br/>(arquitectura hexagonal)<br/>solo red interna"]
+    MOSQ --> GPST["gps_tracker (asyncio)<br/>Redis + batch PostgreSQL"]
+
+    DJANGO --> PG[("PostgreSQL + PostGIS<br/>datos relacionales/geo")]
+    DJANGO --> REDIS[("Redis<br/>cache · broker · posiciones vivo")]
+    DJANGO --> MONGO[("MongoDB<br/>datos documentales")]
+    FASTAPI --> PG
+    FASTAPI --> REDIS
+    GPST --> REDIS
+    GPST --> PG
+
+    CELERY["Celery Beat (60s)<br/>field.check_field_alerts"] --> REDIS
+    CELERY -->|"si está en zona Roja/Amarilla"| FCMOUT["🔔 FCM push → Flutter"]
+
+    subgraph WORKERS["⚙️ Servicios Python autónomos (ciclos temporales)"]
+        ING2["ingestor — Open-Meteo → WeatherObservation"]
+        TRAIN2["trainer — entrena MLP/LSTM → ModelArtifact"]
+        PRED2["predictor — modelo activo → StormAlert"]
+        WATCH["watchdog — heartbeats → estado de servicios"]
+        TGBOT["telegram_bot — StormAlert → Telegram API"]
+    end
+    WORKERS --> PG
+
+    classDef cliente fill:#e0e7ff,stroke:#4338ca,color:#000
+    classDef gateway fill:#fef3c7,stroke:#b45309,color:#000
+    classDef app fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef datos fill:#d1fae5,stroke:#047857,color:#000
+    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
+    class BROWSER,FLUTTER cliente
+    class NGINX,MOSQ gateway
+    class DJANGO,FASTAPI app
+    class PG,REDIS,MONGO datos
+    class GPST,CELERY,FCMOUT campo
 ```
 
 ---
@@ -121,55 +135,63 @@ Td ≈ T - (100 - RH) / 5   [aproximación Magnus, válida para RH > 50%]
 
 ### CRISP-DM — Fases del pipeline ML
 
+Metodología estándar de proyectos de Machine Learning, en 6 fases que van de "qué problema resolvemos" a "el modelo ya está prediciendo en producción":
+
+```mermaid
+flowchart TD
+    P1["1️⃣ Business Understanding<br/>¿Hay riesgo de tormenta en la próxima hora?<br/>(predicción binaria, alineada a escala SENAMHI)"]
+    P2["2️⃣ Data Understanding<br/>Histórico 2024-2025 de Open-Meteo<br/>por cada estación · 5 variables físicas"]
+    P3["3️⃣ Data Preparation<br/>prepare.py"]
+    P4["4️⃣ Modeling<br/>train.py"]
+    P5["5️⃣ Evaluation<br/>benchmark.py + calibrate.py"]
+    P6["6️⃣ Deployment<br/>predict.py — ciclo horario en producción"]
+
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6
+    P6 -.->|"re-entrenar con datos nuevos"| P3
+
+    classDef fase fill:#ede9fe,stroke:#6d28d9,color:#000
+    class P1,P2,P3,P4,P5,P6 fase
 ```
-[1] Business Understanding
-    → Alertas alineadas a escala SENAMHI (4 niveles de riesgo)
-    → Predicción binaria: ¿hay riesgo de tormenta en la próxima hora?
 
-[2] Data Understanding
-    → Datos históricos 2024-2025 de Open-Meteo Archive por cada estación
-    → 5 features físicamente interpretables
+**[3] Data Preparation** — limpieza y normalización antes de entrenar:
+- Quita valores fuera de rango físico: temperatura (-20, 50°C), humedad (0-100%), presión (500-1100 hPa), CAPE (0-10000 J/kg), K-Index (-20, 60)
+- Etiqueta cada fila como tormenta o no, con una regla simple: `CAPE ≥ 500 J/kg AND K-Index ≥ 20 → storm = 1`
+- Normaliza los valores a escala 0-1 (`MinMaxScaler`, se guarda como `scaler.pkl` para usar el mismo criterio en producción)
+- Divide los datos: 70% para entrenar, 15% para validar, 15% para probar al final
 
-[3] Data Preparation  (trainer/app/application/prepare.py)
-    → Limpieza de outliers por rango físico:
-        temperature  (-20, 50°C)
-        humidity     (0, 100%)
-        pressure     (500, 1100 hPa)
-        cape         (0, 10000 J/kg)
-        k_index      (-20, 60)
-    → Label binario heurístico SENAMHI-aligned:
-        CAPE ≥ 500 J/kg  AND  K-Index ≥ 20  →  storm = 1
-    → Normalización Min-Max (sklearn MinMaxScaler, persistido como scaler.pkl)
-    → Split 70 / 15 / 15 (train / val / test)
+**[4] Modeling** — se entrenan dos arquitecturas distintas y se comparan:
 
-[4] Modeling  (trainer/app/application/train.py)
-    → Arquitectura MLP:
-        Input(5) → Dense(64,relu) → Dropout(0.2) → Dense(32,relu)
-                 → Dropout(0.2) → Dense(16,relu) → Dense(1,sigmoid)
-    → Arquitectura LSTM:
-        Input(seq_len=6, 5) → LSTM(64) → Dropout(0.2) → Dense(32,relu)
-                            → Dropout(0.2) → Dense(1,sigmoid)
-    → Optimizador: Adam lr=0.001
-    → Loss: binary_crossentropy
-    → EarlyStopping patience=8, max 50 épocas, batch=64
-    → Benchmark MLP vs LSTM por ROC-AUC → mejor arquitectura gana
+```mermaid
+flowchart LR
+    subgraph MLP["MLP — ve solo el momento actual"]
+        direction LR
+        I1["Input (5 variables)"] --> D1["Dense 64"] --> DR1["Dropout 0.2"] --> D2["Dense 32"] --> DR2["Dropout 0.2"] --> D3["Dense 16"] --> O1["Sigmoid (0-1)"]
+    end
+    subgraph LSTM["LSTM — ve las últimas 6 horas (memoria)"]
+        direction LR
+        I2["Input (6 horas × 5 variables)"] --> L1["LSTM 64"] --> DR3["Dropout 0.2"] --> D4["Dense 32"] --> DR4["Dropout 0.2"] --> O2["Sigmoid (0-1)"]
+    end
+```
 
-[5] Evaluation  (trainer/app/application/benchmark.py + calibrate.py)
-    → Cross-validation por folds (ModelBenchmark)
-    → Calibración de probabilidades: Platt Scaling (CalibratedClassifierCV)
-    → SHAP DeepExplainer: background set para explicabilidad per-predicción
-    → Umbrales calibrados por Youden's J statistic (maximiza Sens + Spec)
-    → Métricas: Accuracy, Precision, Recall, F1, ROC-AUC
-    → Persistencia: modelo .keras, scaler.pkl, calibrator.pkl, shap_background.npy
+Ambas usan optimizador Adam (lr=0.001), pérdida `binary_crossentropy`, `EarlyStopping` (para 50 épocas máx., se detiene si no mejora en 8 épocas), batch=64. Al final se comparan por ROC-AUC y **gana la arquitectura que prediga mejor** — no es una decisión manual.
 
-[6] Deployment  (predictor/app/application/predict.py — ciclo horario)
-    → Carga ModelArtifact con is_active=True desde PostgreSQL
-    → Soporta MLP (última observación) y LSTM (últimas 6 observaciones)
-    → raw_prob = model.predict(X_scaled)
-    → prob_calibrada = calibrador.predict_proba([[raw_prob]])
-    → nivel = thresholds_calibrados_youden (verde/amarillo/naranja/rojo)
-    → explanation_json = SHAP values por feature (temperatura, humedad, etc.)
-    → INSERT StormAlert para cada estación activa
+**[5] Evaluation** — antes de pasar a producción:
+- Validación cruzada por folds (`ModelBenchmark`)
+- Calibración de probabilidades con Platt Scaling — para que "0.8" realmente signifique "80% de las veces que el modelo dice esto, hay tormenta"
+- SHAP: explica qué variable pesó más en cada predicción individual (ej. "fue el CAPE alto")
+- Umbrales de corte (verde/amarillo/naranja/rojo) ajustados automáticamente con el estadístico de Youden
+- Se guardan en disco: el modelo (`.keras`), el normalizador (`scaler.pkl`), el calibrador (`calibrator.pkl`) y el set de referencia de SHAP
+
+**[6] Deployment** — esto es lo que corre cada hora en producción (`predictor`):
+
+```mermaid
+flowchart LR
+    A["Cargar el modelo activo<br/>(ModelArtifact.is_active=True)"] --> B["Tomar la última observación<br/>(o últimas 6h si es LSTM)"]
+    B --> C["Predecir probabilidad cruda<br/>raw_prob = model.predict(X)"]
+    C --> D["Calibrar la probabilidad<br/>con Platt Scaling"]
+    D --> E["Asignar nivel SENAMHI<br/>según umbrales de Youden"]
+    E --> F["Calcular SHAP<br/>(por qué este resultado)"]
+    F --> G["Guardar StormAlert<br/>en PostgreSQL"]
 ```
 
 ### Escala de alertas SENAMHI
@@ -183,21 +205,45 @@ Td ≈ T - (100 - RH) / 5   [aproximación Magnus, válida para RH > 50%]
 
 Los umbrales se ajustan automáticamente por Youden's J tras la calibración y se persisten en `ModelArtifact.thresholds_json`.
 
+```mermaid
+flowchart LR
+    P["Probabilidad<br/>calibrada (0-1)"] --> V["< 0.30<br/>🟢 Verde<br/>Sin riesgo"]
+    P --> A["0.30 – 0.60<br/>🟡 Amarillo<br/>Riesgo moderado"]
+    P --> N["0.60 – 0.85<br/>🟠 Naranja<br/>Peligroso"]
+    P --> R["≥ 0.85<br/>🔴 Rojo<br/>Riesgo extremo"]
+
+    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
+    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
+    classDef naranja fill:#fed7aa,stroke:#c2410c,color:#000
+    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
+    class V verde
+    class A amarillo
+    class N naranja
+    class R rojo
+```
+
 ### Flujo de notificación
 
-```
-StormAlert generado por predictor
-       │
-       ├─► Django API /api/weather/alerts/
-       │        └─► Vue SPA — mapa Leaflet con colores por nivel
-       │
-       └─► telegram_bot (ciclo cada TELEGRAM_NOTIFIER_CYCLE_SEC)
-               │
-               ├─ Consulta alertas sin telegram_notified_at
-               ├─ Filtra TelegramSubscription por department + min_level
-               ├─ Envía mensaje Markdown vía python-telegram-bot
-               │     ⚡ ALERTA TORMENTA — Nivel X — Estación — prob% — SHAP
-               └─ Marca telegram_notified_at en PostgreSQL
+```mermaid
+sequenceDiagram
+    participant Pred as Predictor
+    participant DB as PostgreSQL
+    participant API as Django API
+    participant Vue as Dashboard (Vue)
+    participant Bot as telegram_bot
+    participant TG as Telegram
+
+    Pred->>DB: INSERT StormAlert
+    API->>DB: GET /api/weather/alerts/
+    API->>Vue: alertas con nivel + color
+    Vue->>Vue: pinta mapa Leaflet
+
+    loop cada TELEGRAM_NOTIFIER_CYCLE_SEC (5 min)
+        Bot->>DB: alertas sin telegram_notified_at
+        Bot->>Bot: filtra suscriptores por department + min_level
+        Bot->>TG: mensaje Markdown ⚡ Nivel X — Estación — prob% — SHAP
+        Bot->>DB: marca telegram_notified_at
+    end
 ```
 
 ---
@@ -235,29 +281,29 @@ La posición **en vivo** (la de "ahora mismo") no se guarda en PostgreSQL para c
 
 A diferencia del clima (que viene de una API externa, Open-Meteo), los datos de posición GPS vienen de los **propios celulares de los empleados** — son datos generados por el sistema mismo, no una fuente externa. El flujo es:
 
-```
-1. App Flutter (celular del empleado)
-   └─ Cada 30 segundos (AppConfig.publishIntervalSec) lee el GPS del celular
-      y publica un mensaje MQTT al tópico:
-      ximbra/{tenant_id}/tracking/employee/{employee_id}/position
-      Contenido: { "lat": -12.04, "lon": -77.03, "accuracy": 8.5, "ts": "2026-06-16T10:00:00Z" }
+```mermaid
+sequenceDiagram
+    participant Cel as 📱 Celular del empleado
+    participant MQ as mosquitto (broker MQTT :1883)
+    participant GT as gps_tracker (asyncio)
+    participant R as Redis (vivo, TTL 24h)
+    participant PG as PostgreSQL (histórico)
 
-2. mosquitto (broker MQTT, puerto 1883 — el único puerto de este módulo expuesto a Internet,
-   porque los celulares deben poder conectarse desde cualquier red)
-   └─ Recibe el mensaje y lo reenvía a quien esté suscrito al tópico ximbra/+/tracking/+/+/position
+    loop cada 30 segundos
+        Cel->>MQ: publica posición GPS<br/>{lat, lon, accuracy, ts}
+        MQ->>GT: reenvía (tópico ximbra/+/tracking/+/+/position)
+        GT->>R: HSET tracking:last_position:{tenant_id}<br/>(mapa en vivo lee de aquí)
+        GT->>GT: guarda en buffer en memoria
+    end
 
-3. gps_tracker (servicio Python asyncio, corre dentro de la red Docker, sin puertos expuestos)
-   └─ Está suscrito permanentemente a ese tópico MQTT
-   └─ Por cada mensaje recibido:
-        a) Escribe inmediatamente en Redis (HSET tracking:last_position:{tenant_id}) —
-           esto es lo que ve el mapa en vivo del dashboard, con 24h de vigencia (TTL)
-        b) Lo guarda en un buffer en memoria
-   └─ Cada 10 segundos O cada 500 mensajes acumulados (lo que ocurra primero),
-      vacía el buffer en un solo INSERT por lotes a la tabla field_positions
-      de PostgreSQL (para tener histórico, no para tiempo real)
-   └─ Si se desconecta del broker MQTT, reintenta la conexión cada 5 segundos
-      automáticamente — no requiere intervención manual
+    loop cada 10s o cada 500 mensajes acumulados
+        GT->>PG: INSERT por lotes en field_positions
+    end
+
+    Note over GT,MQ: si se pierde la conexión MQTT,<br/>gps_tracker reintenta solo cada 5s
 ```
+
+**Tópico MQTT:** `ximbra/{tenant_id}/tracking/employee/{employee_id}/position` — cada celular publica solo a su propio tópico; `gps_tracker` está suscrito al patrón `ximbra/+/tracking/+/+/position` (el `+` es un comodín MQTT) para recibir todos a la vez.
 
 **Resumen para quien no es técnico:** los datos GPS no se "descargan" de ningún sitio externo como el clima — se reciben en tiempo real de cada celular conectado, se guardan al instante en una memoria rápida (Redis) para el mapa en vivo, y cada 10 segundos se respaldan en lote en la base de datos permanente para no perderlos.
 
@@ -265,32 +311,27 @@ A diferencia del clima (que viene de una API externa, Open-Meteo), los datos de 
 
 Esta es la tarea Celery `field.check_field_alerts`, programada para correr **cada 60 segundos** (`CELERY_BEAT_SCHEDULE`). Es completamente independiente del modelo de IA — no predice nada nuevo, solo usa las alertas (`StormAlert`) que el `predictor` ya generó y calcula geometría:
 
-```
-Cada 60 segundos:
-  1. Buscar todas las StormAlert activas con nivel ≥ 2 (Amarillo o peor)
-     → de ahí saco la ubicación (lat/lon) de cada estación en alerta
+```mermaid
+flowchart TD
+    START["⏱️ Cada 60 segundos<br/>(Celery Beat)"] --> A["Buscar StormAlert activas<br/>con nivel ≥ 2 (Amarillo o peor)"]
+    A --> B["Leer de Redis la posición<br/>en vivo de cada empleado"]
+    B --> C["Calcular distancia Haversine<br/>empleado ↔ estación más cercana en alerta"]
+    C --> D{"¿Qué tan lejos<br/>está el empleado?"}
+    D -->|"≤ 16 km"| ROJO["🔴 Nivel 4 — Rojo<br/>zumbido continuo"]
+    D -->|"16-32 km"| AMAR["🟡 Nivel 2 — Amarillo<br/>zumbido intermitente"]
+    D -->|"> 32 km"| VERDE["🟢 Nivel 1 — Verde<br/>no se envía nada"]
+    ROJO --> E{"¿Cooldown OK?<br/>(sin push hace < 5 min<br/>con el mismo nivel)"}
+    AMAR --> E
+    E -->|"sí, puede enviar"| F["📲 Enviar push FCM<br/>+ guardar last_alert_level/sent_at"]
+    E -->|"no, ya se le avisó"| G["omitir — evita espamear"]
+    F --> H["Guardar nivel en Redis<br/>tracking:field_alert:{employee_id} (TTL 2h)<br/>→ pinta el anillo de color en el mapa"]
 
-  2. Para cada tenant, leer de Redis las posiciones en vivo de todos sus empleados
-
-  3. Para cada empleado, calcular la distancia (fórmula de Haversine — distancia
-     en línea recta sobre la esfera terrestre) a CADA estación en alerta,
-     y quedarme con la más cercana:
-
-       distancia ≤ 16 km   →  Nivel 4 — Rojo    (zumbido continuo)
-       16 km < distancia ≤ 32 km → Nivel 2 — Amarillo (zumbido intermitente)
-       distancia > 32 km   →  Nivel 1 — Verde   (sin alerta, no se envía nada)
-
-  4. Si el nivel calculado es ≥ 2, revisar el "cooldown": no se reenvía la misma
-     alerta al mismo empleado si ya se le envió hace menos de 5 minutos Y el nivel
-     no cambió (evita saturarlo de notificaciones repetidas)
-
-  5. Si pasa el cooldown, enviar push FCM al celular del empleado con título,
-     cuerpo del mensaje, nivel y distancia — y guardar el nuevo nivel/fecha
-     en Employee.last_alert_level / last_alert_sent_at
-
-  6. Guardar el nivel actual en Redis (tracking:field_alert:{employee_id}, TTL 2h)
-     para que el mapa en vivo del dashboard también pinte el anillo de color
-     correcto alrededor del marcador del empleado
+    classDef rojo fill:#fecaca,stroke:#b91c1c,color:#000
+    classDef amarillo fill:#fef08a,stroke:#a16207,color:#000
+    classDef verde fill:#bbf7d0,stroke:#15803d,color:#000
+    class ROJO rojo
+    class AMAR amarillo
+    class VERDE verde
 ```
 
 ### Notificaciones push (FCM) — `backend/apps/field/fcm.py`
@@ -375,28 +416,38 @@ El endpoint `GET /api/field/tracking/live/` lee directamente de Redis (no de Pos
 
 ## Servicios y contenedores
 
-```
-ximbra_app_network (bridge Docker)
-│
-├── vue           nginx — SPA compilada, proxy /api/ → django:8000
-├── django        gunicorn + UvicornWorker ASGI, puerto interno 8000
-├── celery_worker procesador de tareas async (emails, jobs personalizados)
-├── celery_beat   scheduler de tareas periódicas (django-celery-beat)
-├── apiauth       FastAPI — validación de API tokens y rate limiting
-├── postgres      PostgreSQL + PostGIS — datos relacionales y geoespaciales
-├── redis         broker Celery, caché, pub/sub, heartbeats del watchdog
-├── mongodb       datos documentales (sin restricción AVX, mongo:4.4)
-├── minio         object storage S3-compatible (media, artefactos ML)
-├── minio_init    one-shot: crea bucket al primer arranque
-│
-├── ingestor      ciclo horario — descarga observaciones Open-Meteo → PostgreSQL
-├── predictor     ciclo horario — genera StormAlerts con el modelo activo
-├── trainer       one-shot bajo demanda — entrena MLP/LSTM, guarda artefactos
-├── watchdog      ciclo continuo — procesa heartbeats Redis → estado servicios
-├── telegram_bot  ciclo 5min — envía alertas pendientes a suscriptores Telegram
-│
-├── mosquitto     broker MQTT — recibe posiciones GPS de celulares de campo
-└── gps_tracker   ciclo continuo (asyncio) — MQTT → Redis (vivo) + PostgreSQL (lote 10s)
+```mermaid
+flowchart TB
+    NET(("ximbra_app_network<br/>(bridge Docker)"))
+
+    NET --> vue["vue — nginx, SPA compilada<br/>proxy /api/ → django:8000"]
+    NET --> django["django — gunicorn + UvicornWorker"]
+    NET --> cw["celery_worker — tareas async"]
+    NET --> cb["celery_beat — scheduler periódico"]
+    NET --> apiauth["apiauth — FastAPI, tokens + rate limit"]
+    NET --> postgres[("postgres — PostGIS")]
+    NET --> redis[("redis — broker/cache/pub-sub")]
+    NET --> mongodb[("mongodb — documentos")]
+    NET --> minio[("minio — object storage")]
+    NET --> minio_init["minio_init — one-shot bucket"]
+
+    NET --> ingestor["ingestor — ciclo 1h<br/>Open-Meteo → PostgreSQL"]
+    NET --> predictor["predictor — ciclo 1h<br/>modelo activo → StormAlert"]
+    NET --> trainer["trainer — one-shot manual<br/>entrena MLP/LSTM"]
+    NET --> watchdog["watchdog — ciclo continuo<br/>heartbeats Redis"]
+    NET --> telegram_bot["telegram_bot — ciclo 5min"]
+
+    NET --> mosquitto["mosquitto — broker MQTT<br/>(único puerto de campo expuesto)"]
+    NET --> gps_tracker["gps_tracker — ciclo continuo<br/>MQTT → Redis + PostgreSQL"]
+
+    classDef web fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef datos fill:#d1fae5,stroke:#047857,color:#000
+    classDef ia fill:#ede9fe,stroke:#6d28d9,color:#000
+    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
+    class vue,django,cw,cb,apiauth web
+    class postgres,redis,mongodb,minio,minio_init datos
+    class ingestor,predictor,trainer,watchdog,telegram_bot ia
+    class mosquitto,gps_tracker campo
 ```
 
 celery_beat también dispara `field.check_field_alerts` cada 60 segundos (motor de distancia del módulo de Campo, ver sección dedicada).
@@ -418,18 +469,33 @@ celery_beat también dispara `field.check_field_alerts` cada 60 segundos (motor 
 
 ### Multi-tenancy y autenticación
 
-```
-CustomUser (email como identificador único)
-    │
-    └──[M2M via UserTenantRole]──► Tenant
-                                      │
-                                      └──► APIToken (1 activo por tenant/owner)
+```mermaid
+erDiagram
+    CustomUser ||--o{ UserTenantRole : tiene
+    Tenant ||--o{ UserTenantRole : agrupa
+    Tenant ||--o{ APIToken : "1 activo por owner"
+    Tenant ||--o{ Invitation : invita
+    CustomUser ||--o{ Notification : recibe
+    CustomUser ||--o{ UserSubscription : suscribe
+    Plan ||--o{ UserSubscription : define
 
-Roles: OWNER · ADMIN · MEMBER · SuperAdmin (is_superuser)
-
-Invitation (UUID token, 72h expiración)
-Plan / UserSubscription (planes de uso)
-Notification (per-user, cross-tenant)
+    CustomUser {
+        string email "identificador único"
+        bool is_email_verified
+    }
+    Tenant {
+        uuid id
+        string slug "auto-generado único"
+        int max_users "default 10"
+        int rate_limit "req/min"
+    }
+    UserTenantRole {
+        string role "OWNER, ADMIN o MEMBER"
+    }
+    APIToken {
+        string token "texto plano solo al crear"
+        datetime expires_at
+    }
 ```
 
 #### CustomUser
@@ -461,59 +527,102 @@ Notification (per-user, cross-tenant)
 
 ### Meteorología y ML
 
-```
-Station (GeoDjango PointField SRID=4326)
-    code · name · department · location(lat,lon) · altitude_m · is_active
-    │
-    ├──► WeatherObservation (upsert horario desde ingestor)
-    │         station · observed_at (unique together)
-    │         temperature · humidity · pressure · cape · k_index
-    │         source="open-meteo" · raw_data (JSON completo)
-    │
-    └──► StormAlert (generado por predictor cada hora)
-              station · observation · probability (calibrada)
-              alert_level (1-4) · is_active
-              model_version · explanation_json (SHAP por feature)
-              notified_at · telegram_notified_at
+```mermaid
+erDiagram
+    Station ||--o{ WeatherObservation : genera
+    Station ||--o{ StormAlert : "tiene alertas"
+    WeatherObservation ||--o| StormAlert : "fue la base de"
+    ModelArtifact ||--o{ StormAlert : "predijo con"
+    ModelArtifact ||--o{ ModelBenchmark : "se evaluó en"
 
-TelegramSubscription
-    chat_id · username · department (vacío=todos) · min_level · is_active
-
-ModelArtifact (artefacto de cada entrenamiento)
-    id (UUID) · version · status (training/ready/failed)
-    model_path · scaler_path · calibrator_path · shap_background_path
-    best_model_type (mlp/lstm) · epochs_run · training_seconds
-    accuracy · precision · recall · f1 · roc_auc · loss
-    thresholds_json (umbrales Youden calibrados)
-    is_active (solo uno activo a la vez)
-
-ModelBenchmark → FK ModelArtifact
-    model_type · cv_fold · accuracy · f1 · roc_auc · training_seconds
+    Station {
+        string code "código SENAMHI"
+        point location "lat, lon"
+        int altitude_m
+        bool is_active
+    }
+    WeatherObservation {
+        datetime observed_at
+        float temperature
+        float humidity
+        float pressure
+        float cape
+        float k_index
+        string source "open-meteo"
+    }
+    StormAlert {
+        float probability "calibrada 0-1"
+        int alert_level "1=Verde .. 4=Rojo"
+        json explanation_json "valores SHAP"
+        datetime notified_at
+        datetime telegram_notified_at
+    }
+    ModelArtifact {
+        uuid id
+        string version
+        string status "training/ready/failed"
+        string best_model_type "mlp o lstm"
+        float accuracy
+        float roc_auc
+        json thresholds_json "umbrales Youden"
+        bool is_active "solo uno a la vez"
+    }
+    ModelBenchmark {
+        string model_type
+        int cv_fold
+        float roc_auc
+    }
+    TelegramSubscription {
+        string chat_id
+        string department "vacío = todos"
+        int min_level
+        bool is_active
+    }
 ```
 
 ### Módulo de Campo (`apps/field/`)
 
-```
-Project (obra)
-    │
-    ├──[M2M]──► Employee (trabajador, lleva el celular con la app)
-    │                │
-    │                └──► last_alert_level / last_alert_sent_at (alerta más reciente)
-    │
-    ├──► GeoFence (frente de trabajo — polígono geográfico)
-    │
-    ├──► MobileRefuge (unidad móvil de refugio)
-    │         conductor → FK Employee (la posición del refugio = posición de su conductor)
-    │
-    └──► RefugePoint (punto de refugio fijo — coordenada geográfica)
+```mermaid
+erDiagram
+    Project }o--o{ Employee : "M2M (empleados asignados)"
+    Project ||--o{ GeoFence : "tiene frentes"
+    Project ||--o{ RefugePoint : "tiene refugios fijos"
+    Employee ||--o| MobileRefuge : "conduce (FK conductor)"
 
-EmployeePosition (histórico GPS — una fila por mensaje recibido, para auditoría/reportes)
-    entity_id · entity_type · latitude · longitude · accuracy · recorded_at
-
-Redis (no es un modelo Django, pero es donde vive el dato "en vivo"):
-    tracking:last_position:{tenant_id}   → hash con la última posición de cada entidad (TTL 24h)
-    tracking:field_alert:{employee_id}   → nivel de alerta actual de ese empleado (TTL 2h)
+    Project {
+        string name
+        date start_date
+        date end_date
+        bool is_active
+    }
+    Employee {
+        string full_name
+        string document_number
+        string device_id "único, para MQTT"
+        string fcm_token "para el push"
+        int last_alert_level "última alerta recibida"
+        datetime last_alert_sent_at
+    }
+    GeoFence {
+        polygon perimeter "frente de trabajo"
+        bool is_active
+    }
+    MobileRefuge {
+        string code
+        string plate
+        int capacity
+    }
+    RefugePoint {
+        point location "coordenada fija"
+        int capacity
+    }
 ```
+
+`EmployeePosition` es aparte: una fila por cada mensaje GPS recibido (`entity_id`, `entity_type`, `latitude`, `longitude`, `accuracy`, `recorded_at`) — solo para histórico/auditoría, no para el mapa en vivo.
+
+**En Redis** (no es tabla, vive en memoria):
+- `tracking:last_position:{tenant_id}` → última posición de cada entidad (TTL 24h) — esto alimenta el mapa en vivo
+- `tracking:field_alert:{employee_id}` → nivel de alerta actual de ese empleado (TTL 2h) — esto pinta el anillo de color en el mapa
 
 ### Notificaciones y plataforma
 
@@ -619,26 +728,35 @@ Servicio en puerto **8001** (solo red interna Docker, nunca expuesto al exterior
 
 ### Arquitectura hexagonal
 
-```
-HTTP Request
-    │
-    ├── app/api/routes/
-    │       process.py    POST /api/v1/process   — ejecuta y consume rate limit
-    │       validate.py   GET  /api/v1/validate  — valida token sin consumir
-    │       (health)      GET  /health            — healthcheck
-    │
-    ├── app/application/
-    │       process_request.py  — caso de uso: validar + consumir + procesar
-    │       validate_token.py   — caso de uso: validar sin efecto lateral
-    │       check_rate_limit.py — lógica sliding window en Redis
-    │
-    ├── app/domain/
-    │       api_token.py · tenant.py · user.py · user_tenant_role.py
-    │       (entidades puras, sin dependencias de infraestructura)
-    │
-    └── app/infrastructure/
-            postgres_adapter.py  — lectura PostgreSQL (solo lectura, SQLAlchemy Core)
-            redis_adapter.py     — rate limiting con ventana deslizante
+```mermaid
+flowchart TD
+    REQ["HTTP Request"] --> ROUTES
+
+    subgraph ROUTES["app/api/routes/ — entrada HTTP"]
+        P["process.py<br/>POST /api/v1/process<br/>ejecuta y consume rate limit"]
+        V["validate.py<br/>GET /api/v1/validate<br/>valida sin consumir"]
+        H["health — GET /health"]
+    end
+
+    ROUTES --> APP
+
+    subgraph APP["app/application/ — casos de uso"]
+        PR["process_request.py<br/>validar + consumir + procesar"]
+        VT["validate_token.py<br/>validar sin efecto lateral"]
+        CRL["check_rate_limit.py<br/>sliding window"]
+    end
+
+    APP --> DOM["app/domain/<br/>entidades puras: api_token, tenant,<br/>user, user_tenant_role<br/>(sin dependencias de infraestructura)"]
+
+    APP --> INFRA
+
+    subgraph INFRA["app/infrastructure/ — adaptadores"]
+        PGA["postgres_adapter.py<br/>solo lectura, SQLAlchemy Core"]
+        RA["redis_adapter.py<br/>rate limit con ventana deslizante"]
+    end
+
+    classDef capa fill:#e0f2fe,stroke:#0369a1,color:#000
+    class ROUTES,APP,DOM,INFRA capa
 ```
 
 **Headers aceptados:**
@@ -737,23 +855,25 @@ App nativa (`mobile/`) que usan los empleados de campo. No requiere usuario del 
 
 ### Flujo de uso
 
-```
-1. Login (login_screen.dart) — el empleado ingresa tenant_id + employee_id + nombre
-   (datos que le da el administrador). Se guardan cifrados en el celular
-   (flutter_secure_storage) para no pedirlos de nuevo.
+```mermaid
+flowchart TD
+    A["1️⃣ Login<br/>ingresa tenant_id + employee_id + nombre<br/>(datos que da el administrador)"] --> B["Se guardan cifrados<br/>en el celular (flutter_secure_storage)"]
+    B --> C["2️⃣ Pantalla de mapa se abre"]
+    C --> D["Pide permiso de ubicación"]
+    D --> E["Lee el GPS<br/>(alta precisión, actualiza si se mueve > 10m)"]
+    E --> F["Se conecta a MQTT<br/>publica posición cada 30s"]
+    C --> G["Se suscribe a FCM"]
+    G --> H{"¿Llega una alerta?"}
+    H -->|"sí"| I["Vibra según nivel<br/>+ banner de color en pantalla"]
+    H -->|"no"| C
+    C --> J["Botón 'Refugios'<br/>lista ordenada por distancia"]
 
-2. Pantalla de mapa (map_screen.dart) — al abrir:
-   a) Pide permiso de ubicación al sistema operativo
-   b) Empieza a leer el GPS (geolocator, alta precisión, actualiza si se mueve > 10 m)
-   c) Se conecta al broker MQTT y publica su posición cada 30 segundos
-   d) Se suscribe a Firebase Cloud Messaging — si llega una alerta, vibra el celular
-      según el nivel (patrón continuo para Rojo, intermitente para Amarillo)
-      y muestra un banner de color en la pantalla
-   e) Botón "Refugios" — abre una lista de los puntos de refugio más cercanos,
-      ordenados por distancia (calculada en el propio celular)
+    F -.->|"sin internet/MQTT caído"| K["Reintenta sola cada 5s<br/>sin intervención del empleado"]
 
-3. Si el celular se queda sin internet o se pierde la conexión MQTT,
-   reintenta sola — el empleado no tiene que hacer nada.
+    classDef accion fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef alerta fill:#fecaca,stroke:#b91c1c,color:#000
+    class I alerta
+    class A,B,C,D,E,F,G,J accion
 ```
 
 ### Paquetes principales (`pubspec.yaml`)
@@ -869,23 +989,39 @@ docker compose run --rm trainer
 
 ### Flujo de datos completo en producción
 
+```mermaid
+flowchart LR
+    subgraph CLIMA["🌦️ Flujo Clima/IA"]
+        direction TB
+        ING["ingestor<br/>(cada 1h)"] --> OBS["WeatherObservation"]
+        OBS --> PRD["predictor<br/>(cada 1h)"] --> SA["StormAlert"]
+        SA --> TGB["telegram_bot<br/>(cada 5 min)"]
+        TRN["trainer<br/>(manual, bajo demanda)"] -.->|"activa nuevo modelo"| PRD
+    end
+
+    subgraph CAMPO["📍 Flujo Campo (paralelo, independiente)"]
+        direction TB
+        FL["App Flutter<br/>(cada 30s)"] --> GT["gps_tracker"]
+        GT --> RED["Redis (vivo)"]
+        GT --> PGB["PostgreSQL<br/>(lote cada 10s)"]
+        CB["Celery Beat<br/>field.check_field_alerts (cada 60s)"] --> RED
+        CB -->|"si Roja/Amarilla"| PUSH["FCM push"]
+    end
+
+    classDef clima fill:#dbeafe,stroke:#1d4ed8,color:#000
+    classDef campo fill:#fecaca,stroke:#b91c1c,color:#000
+    class ING,OBS,PRD,SA,TGB,TRN clima
+    class FL,GT,RED,PGB,CB,PUSH campo
 ```
-[Cada hora — automático]
-  ingestor  → Open-Meteo forecast → WeatherObservation (upsert por station+hora)
-  predictor → última(s) observación(es) → modelo activo → StormAlert
 
-[Cada 5 minutos — automático]
-  telegram_bot → StormAlerts sin telegram_notified_at → suscriptores Telegram
-
-[Bajo demanda — manual vía Django Admin o management command]
-  trainer → Open-Meteo Archive (histórico 2024-2025) → ModelArtifact
-          → activa modelo → predictor lo carga en próximo ciclo
-
-[Continuo — automático, módulo de Campo]
-  App Flutter → MQTT (cada 30s) → gps_tracker → Redis (vivo) + PostgreSQL (lote 10s)
-  Celery Beat (cada 60s) → field.check_field_alerts → distancia a StormAlerts activas
-                          → FCM push al celular si está en zona Roja/Amarilla
-```
+| Cuándo | Quién | Qué hace |
+|---|---|---|
+| Cada hora | `ingestor` | Open-Meteo forecast → `WeatherObservation` (upsert por estación+hora) |
+| Cada hora | `predictor` | última(s) observación(es) → modelo activo → `StormAlert` |
+| Cada 5 min | `telegram_bot` | `StormAlert` sin notificar → suscriptores de Telegram |
+| Bajo demanda (manual) | `trainer` | Open-Meteo Archive histórico → nuevo `ModelArtifact` → se activa → `predictor` lo usa en el próximo ciclo |
+| Continuo | App Flutter → MQTT | posición GPS cada 30s → `gps_tracker` → Redis (vivo) + PostgreSQL (lote cada 10s) |
+| Cada 60s | Celery Beat | `field.check_field_alerts` — distancia a `StormAlert` activas → FCM push si está en zona Roja/Amarilla |
 
 ### Endpoints públicos en producción
 
