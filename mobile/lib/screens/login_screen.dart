@@ -14,6 +14,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _tenantCtrl = TextEditingController();
   final _employeeIdCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
+  final _apiBaseCtrl = TextEditingController();
+  final _apiTokenCtrl = TextEditingController();
   bool _saving = false;
   String? _error;
 
@@ -27,6 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _tenantCtrl.text = await _storage.read(key: 'tenant_id') ?? '';
     _employeeIdCtrl.text = await _storage.read(key: 'employee_id') ?? '';
     _nameCtrl.text = await _storage.read(key: 'employee_name') ?? '';
+    _apiBaseCtrl.text = await _storage.read(key: 'api_base_url') ?? '';
+    _apiTokenCtrl.text = await _storage.read(key: 'api_token') ?? '';
   }
 
   Future<void> _enter() async {
@@ -38,6 +42,12 @@ class _LoginScreenState extends State<LoginScreen> {
     await _storage.write(key: 'tenant_id', value: _tenantCtrl.text.trim());
     await _storage.write(key: 'employee_id', value: _employeeIdCtrl.text.trim());
     await _storage.write(key: 'employee_name', value: _nameCtrl.text.trim());
+    if (_apiBaseCtrl.text.trim().isNotEmpty) {
+      await _storage.write(key: 'api_base_url', value: _apiBaseCtrl.text.trim());
+    }
+    if (_apiTokenCtrl.text.trim().isNotEmpty) {
+      await _storage.write(key: 'api_token', value: _apiTokenCtrl.text.trim());
+    }
     if (!mounted) return;
     Navigator.of(context).pushReplacement(MaterialPageRoute(
       builder: (_) => MapScreen(
@@ -77,6 +87,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       _field(_employeeIdCtrl, 'ID de Empleado (UUID)', Icons.badge),
                       const SizedBox(height: 16),
                       _field(_nameCtrl, 'Tu nombre', Icons.person),
+                      const SizedBox(height: 8),
+                      const Divider(),
+                      const Text('Opcional: para ver refugios en la app',
+                          style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 8),
+                      _field(_apiBaseCtrl, 'URL base API (ej. https://ximbra.dominio.pe)', Icons.link),
+                      const SizedBox(height: 16),
+                      _field(_apiTokenCtrl, 'Token JWT (del admin)', Icons.key),
                       if (_error != null) ...[
                         const SizedBox(height: 12),
                         Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
@@ -124,6 +142,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _tenantCtrl.dispose();
     _employeeIdCtrl.dispose();
     _nameCtrl.dispose();
+    _apiBaseCtrl.dispose();
+    _apiTokenCtrl.dispose();
     super.dispose();
   }
 }

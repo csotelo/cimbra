@@ -3,7 +3,7 @@
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 
-from .models import Employee, GeoFence, MobileRefuge, Project
+from .models import Employee, GeoFence, MobileRefuge, Project, RefugePoint
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
@@ -100,3 +100,34 @@ class MobileRefugeSerializer(serializers.ModelSerializer):
             "is_active", "created_at",
         ]
         read_only_fields = ["id", "created_at", "conductor_name", "project_name"]
+
+
+class RefugePointSerializer(serializers.ModelSerializer):
+    project_name = serializers.CharField(source="project.name", read_only=True, allow_null=True)
+    latitude = serializers.SerializerMethodField()
+    longitude = serializers.SerializerMethodField()
+
+    class Meta:
+        model = RefugePoint
+        fields = [
+            "id", "name", "description", "location", "latitude", "longitude",
+            "capacity", "project", "project_name", "is_active", "created_at",
+        ]
+        read_only_fields = ["id", "created_at", "project_name", "latitude", "longitude"]
+
+    def get_latitude(self, obj):
+        return obj.location.y if obj.location else None
+
+    def get_longitude(self, obj):
+        return obj.location.x if obj.location else None
+
+
+class RefugePointGeoSerializer(GeoFeatureModelSerializer):
+    """GeoJSON FeatureCollection for Leaflet overlay."""
+
+    project_name = serializers.CharField(source="project.name", read_only=True, allow_null=True)
+
+    class Meta:
+        model = RefugePoint
+        geo_field = "location"
+        fields = ["id", "name", "description", "capacity", "project", "project_name", "is_active"]

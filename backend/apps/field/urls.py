@@ -8,6 +8,7 @@ from .views import (
     GeoFenceViewSet,
     MobileRefugeViewSet,
     ProjectViewSet,
+    RefugePointViewSet,
     TrackingLiveView,
 )
 
@@ -16,6 +17,7 @@ router.register("employees", EmployeeViewSet, basename="employee")
 router.register("projects", ProjectViewSet, basename="project")
 router.register("fences", GeoFenceViewSet, basename="geofence")
 router.register("refuges", MobileRefugeViewSet, basename="mobile-refuge")
+router.register("points", RefugePointViewSet, basename="refuge-point")
 
 urlpatterns = router.urls + [
     path("tracking/live/", TrackingLiveView.as_view(), name="tracking-live"),

@@ -5,6 +5,36 @@ Versioning: MAJOR.MINOR.PATCH — fix = PATCH, feature = MINOR.
 
 ---
 
+## [0.14.0] - 2026-06-15
+
+### Sprint 3 — Refugios Fijos y Mapa de Seguridad Integrado
+
+#### Backend — nuevo modelo en `field`
+- Modelo `RefugePoint` — punto de refugio fijo (UUID, tenant, name, description, PointField geography=True SRID=4326, capacity, project FK, is_active)
+- Migración `field/0003_refuge_point`
+- `RefugePointViewSet` — CRUD + toggle + acción `GET /api/field/points/geojson/` (GeoJSON FeatureCollection para Leaflet)
+- `RefugePointSerializer` + `RefugePointGeoSerializer` (GeoFeatureModelSerializer)
+- Admin: `RefugePointAdmin` (GISModelAdmin con mapa interactivo)
+
+#### Frontend — módulo Campo
+- `RefugePointMap.vue` — mapa Leaflet: clic en mapa para posicionar punto, modal nombre/descripción/capacidad/proyecto, marcadores verdes tipo escudo, panel lateral de lista, eliminar punto
+- `SafetyMap.vue` — mapa de seguridad integrado con 5 capas:
+  - Frentes de trabajo (polígonos índigo, `/api/field/fences/geojson/`)
+  - Refugios fijos (marcadores verdes, `/api/field/points/geojson/`)
+  - Posiciones en vivo empleados/refugios móviles (polling 5 s, `/api/field/tracking/live/`)
+  - Estaciones meteorológicas (marcadores cian, `/api/weather/stations/geojson/`)
+  - Panel lateral: alertas activas por nivel de color + unidades GPS en campo
+- Rutas nuevas: `/campo/refugios-fijos`, `/campo/mapa-seguridad`
+
+#### Móvil — app Flutter
+- `services/api_service.dart` — cliente HTTP para `/api/field/points/geojson/` con Bearer token
+- `screens/refuge_screen.dart` — lista de puntos de refugio ordenados por distancia al usuario,
+  indicador de color (verde ≤500 m, naranja ≤2 km, rojo > 2 km), recarga manual
+- `screens/map_screen.dart` — FAB "Refugios" abre refuge_screen con posición actual
+- `screens/login_screen.dart` — campos opcionales: URL base API + JWT token del admin
+
+---
+
 ## [0.13.0] - 2026-06-15
 
 ### Sprint 2 — Rastreo GPS en tiempo real: MQTT + Refugios Móviles + Flutter

@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../services/location_service.dart';
 import '../services/mqtt_service.dart';
 import '../config/app_config.dart';
+import 'refuge_screen.dart';
 
 class MapScreen extends StatefulWidget {
   final String tenantId;
@@ -115,6 +116,21 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => RefugeScreen(
+              currentLat: _currentPosition?.latitude,
+              currentLon: _currentPosition?.longitude,
+            ),
+          ),
+        ),
+        backgroundColor: const Color(0xFF16A34A),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.shield_outlined),
+        label: const Text('Refugios'),
       ),
       body: Stack(
         children: [

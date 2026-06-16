@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.contrib.gis.admin import GISModelAdmin
 
-from .models import Employee, GeoFence, MobileRefuge, Project
+from .models import Employee, GeoFence, MobileRefuge, Project, RefugePoint
 
 
 @admin.register(Employee)
@@ -60,5 +60,21 @@ class MobileRefugeAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {"fields": ("id", "tenant", "code", "plate", "capacity")}),
         ("Asignación", {"fields": ("conductor", "project")}),
+        ("Estado", {"fields": ("is_active", "created_at")}),
+    )
+
+
+@admin.register(RefugePoint)
+class RefugePointAdmin(GISModelAdmin):
+    list_display = ["name", "capacity", "project", "tenant", "is_active", "created_at"]
+    list_filter = ["is_active", "tenant", "project"]
+    search_fields = ["name", "description"]
+    list_editable = ["is_active"]
+    readonly_fields = ["id", "created_at"]
+    ordering = ["name"]
+
+    fieldsets = (
+        (None, {"fields": ("id", "tenant", "name", "description", "location")}),
+        ("Capacidad y proyecto", {"fields": ("capacity", "project")}),
         ("Estado", {"fields": ("is_active", "created_at")}),
     )

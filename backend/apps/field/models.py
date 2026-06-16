@@ -159,3 +159,33 @@ class EmployeePosition(models.Model):
 
     def __str__(self):
         return f"{self.entity_type}:{self.entity_id} @ {self.recorded_at}"
+
+
+class RefugePoint(models.Model):
+    """Fixed geographic shelter point — a safe evacuation destination."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name="refuge_points")
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    location = models.PointField(srid=4326, geography=True, help_text="Ubicación geográfica del refugio")
+    capacity = models.PositiveSmallIntegerField(default=50, help_text="Capacidad máxima de personas")
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="refuge_points",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "field_refuge_points"
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["tenant", "is_active"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} (cap. {self.capacity})"

@@ -147,6 +147,18 @@ const routes = [
                 meta: { requiresAuth: true, menu: true, label: "Rastreo GPS", order: 5, group: "campo", groupLabel: "Campo", groupOrder: 20 },
             },
             {
+                path: "campo/refugios-fijos",
+                name: "refuge-point-map",
+                component: () => import("@/views/field/RefugePointMap.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Refugios Fijos", order: 6, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
+                path: "campo/mapa-seguridad",
+                name: "safety-map",
+                component: () => import("@/views/field/SafetyMap.vue"),
+                meta: { requiresAuth: true, menu: true, label: "Mapa de Seguridad", order: 7, group: "campo", groupLabel: "Campo", groupOrder: 20 },
+            },
+            {
                 path: "configuracion",
                 name: "site-settings",
                 component: () => import("@/views/admin/SiteSettings.vue"),

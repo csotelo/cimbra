@@ -12,13 +12,15 @@ from rest_framework.views import APIView
 from core.middleware import get_current_tenant
 from apps.tenants.permissions import IsTenantMember, IsTenantAdmin
 
-from .models import Employee, GeoFence, MobileRefuge, Project
+from .models import Employee, GeoFence, MobileRefuge, Project, RefugePoint
 from .serializers import (
     EmployeeSerializer,
     GeoFenceGeoSerializer,
     GeoFenceSerializer,
     MobileRefugeSerializer,
     ProjectSerializer,
+    RefugePointGeoSerializer,
+    RefugePointSerializer,
 )
 
 
@@ -154,6 +156,44 @@ class MobileRefugeViewSet(viewsets.ModelViewSet):
         obj.is_active = not obj.is_active
         obj.save(update_fields=["is_active"])
         return Response({"id": str(obj.id), "is_active": obj.is_active})
+
+
+class RefugePointViewSet(viewsets.ModelViewSet):
+    """CRUD for fixed refuge points scoped to the active tenant."""
+
+    permission_classes = [IsAuthenticated, IsTenantMember]
+    serializer_class = RefugePointSerializer
+
+    def get_queryset(self):
+        tenant = get_current_tenant()
+        if not tenant:
+            return RefugePoint.objects.none()
+        qs = RefugePoint.objects.filter(tenant=tenant).select_related("project")
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active.lower() == "true")
+        project_id = self.request.query_params.get("project")
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        return qs
+
+    def perform_create(self, serializer):
+        tenant = get_current_tenant()
+        serializer.save(tenant=tenant)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsTenantAdmin])
+    def toggle(self, request, pk=None):
+        obj = self.get_object()
+        obj.is_active = not obj.is_active
+        obj.save(update_fields=["is_active"])
+        return Response({"id": str(obj.id), "is_active": obj.is_active})
+
+    @action(detail=False, methods=["get"])
+    def geojson(self, request):
+        """GeoJSON FeatureCollection of active refuge points for Leaflet."""
+        qs = self.get_queryset().filter(is_active=True)
+        serializer = RefugePointGeoSerializer(qs, many=True)
+        return Response(serializer.data)
 
 
 class TrackingLiveView(APIView):
