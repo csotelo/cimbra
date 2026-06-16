@@ -102,7 +102,7 @@ async def main() -> None:
     redis_conn = await aioredis.from_url(REDIS_URL, decode_responses=True)
     db_pool = await asyncpg.create_pool(_pg_url(DB_URL), min_size=1, max_size=3)
 
-    asyncio.create_task(batch_writer(db_pool))
+    _batch_task = asyncio.create_task(batch_writer(db_pool))  # noqa: F841 — keep ref to avoid GC
 
     while True:
         try:

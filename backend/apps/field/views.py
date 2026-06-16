@@ -3,7 +3,8 @@
 import json
 import os
 
-from rest_framework import status, viewsets
+import redis as _redis_lib
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -22,6 +23,18 @@ from .serializers import (
     RefugePointGeoSerializer,
     RefugePointSerializer,
 )
+
+_redis_client = None
+
+
+def _get_redis():
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = _redis_lib.Redis.from_url(
+            os.environ.get("REDIS_URL", "redis://redis:6379"),
+            decode_responses=True,
+        )
+    return _redis_client
 
 
 class EmployeeViewSet(viewsets.ModelViewSet):
@@ -206,10 +219,7 @@ class TrackingLiveView(APIView):
         if not tenant:
             return Response({"positions": []})
 
-        import redis as redis_lib
-
-        redis_url = os.environ.get("REDIS_URL", "redis://redis:6379")
-        r = redis_lib.Redis.from_url(redis_url, decode_responses=True)
+        r = _get_redis()
 
         raw = r.hgetall(f"tracking:last_position:{tenant.id}")
 

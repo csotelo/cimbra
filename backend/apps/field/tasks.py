@@ -115,9 +115,9 @@ def check_field_alerts():
                 dist = _haversine_km(emp_lat, emp_lon, station["lat"], station["lon"])
                 candidate_level = 1
                 if dist <= ALERT_RED_KM:
-                    candidate_level = max(station["alert_level"], 4)
+                    candidate_level = 4  # Rojo — zona de peligro inmediato (0-16 km)
                 elif dist <= ALERT_YELLOW_KM:
-                    candidate_level = max(station["alert_level"], 2)
+                    candidate_level = 2  # Amarillo — zona de precaución (16-32 km)
 
                 if candidate_level > closest_level:
                     closest_level = candidate_level

@@ -7,24 +7,29 @@ import os
 log = logging.getLogger("field.fcm")
 
 _fcm_app = None
+_fcm_init_attempted = False
 
 
 def _get_app():
-    global _fcm_app
-    if _fcm_app is not None:
+    global _fcm_app, _fcm_init_attempted
+    if _fcm_init_attempted:
         return _fcm_app
+    _fcm_init_attempted = True
     cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON", "").strip()
     if not cred_json:
         return None
     try:
         import firebase_admin
         from firebase_admin import credentials
-        cred = credentials.Certificate(json.loads(cred_json))
-        _fcm_app = firebase_admin.initialize_app(cred, name="ximbra-field")
+        try:
+            # Guard against concurrent workers that already registered the app name
+            _fcm_app = firebase_admin.get_app("ximbra-field")
+        except ValueError:
+            cred = credentials.Certificate(json.loads(cred_json))
+            _fcm_app = firebase_admin.initialize_app(cred, name="ximbra-field")
         log.info("Firebase app initialized")
     except Exception as exc:
         log.error("Firebase init error: %s", exc)
-        _fcm_app = None
     return _fcm_app
 
 
