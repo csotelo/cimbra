@@ -256,4 +256,14 @@ class TrackingLiveView(APIView):
             else:
                 pos["mobile_refuge"] = None
 
+            # Enrich with field alert level (set by check_field_alerts Celery task)
+            raw_alert = r.get(f"tracking:field_alert:{eid}")
+            if raw_alert:
+                try:
+                    pos["field_alert"] = json.loads(raw_alert)
+                except Exception:
+                    pos["field_alert"] = None
+            else:
+                pos["field_alert"] = None
+
         return Response({"positions": positions})

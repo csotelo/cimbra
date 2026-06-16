@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/location_service.dart';
 import '../services/mqtt_service.dart';
+import '../services/fcm_service.dart';
 import '../config/app_config.dart';
 import 'refuge_screen.dart';
 
@@ -28,17 +29,23 @@ class _MapScreenState extends State<MapScreen> {
   final LocationService _locationService = LocationService();
   final MqttService _mqttService = MqttService();
   final MapController _mapController = MapController();
+  final FcmService _fcm = FcmService();
 
   LatLng? _currentPosition;
   bool _mqttConnected = false;
   String _statusMsg = 'Conectando...';
   Timer? _publishTimer;
   Position? _lastPosition;
+  Map<String, dynamic>? _activeAlert;
+  StreamSubscription? _alertSub;
 
   @override
   void initState() {
     super.initState();
     _init();
+    _alertSub = _fcm.alertStream.listen((alert) {
+      setState(() => _activeAlert = alert['level'] > 1 ? alert : null);
+    });
   }
 
   Future<void> _init() async {
@@ -53,9 +60,7 @@ class _MapScreenState extends State<MapScreen> {
       _lastPosition = pos;
       final ll = LatLng(pos.latitude, pos.longitude);
       setState(() => _currentPosition = ll);
-      try {
-        _mapController.move(ll, _mapController.camera.zoom);
-      } catch (_) {}
+      try { _mapController.move(ll, _mapController.camera.zoom); } catch (_) {}
     });
 
     final clientId = 'ximbra-${widget.employeeId.substring(0, 8)}';
@@ -64,7 +69,6 @@ class _MapScreenState extends State<MapScreen> {
       _statusMsg = _mqttConnected ? 'En vivo — enviando GPS' : 'Sin conexión MQTT';
     });
 
-    // Publish every N seconds regardless of movement
     _publishTimer = Timer.periodic(
       const Duration(seconds: AppConfig.publishIntervalSec),
       (_) => _publishPosition(),
@@ -85,6 +89,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     _publishTimer?.cancel();
+    _alertSub?.cancel();
     _locationService.stop();
     _mqttService.disconnect();
     super.dispose();
@@ -152,20 +157,31 @@ class _MapScreenState extends State<MapScreen> {
                       point: _currentPosition!,
                       width: 40,
                       height: 40,
-                      child: const Icon(
-                        Icons.my_location,
-                        color: Color(0xFF4F46E5),
-                        size: 32,
-                      ),
+                      child: const Icon(Icons.my_location, color: Color(0xFF4F46E5), size: 32),
                     ),
                   ],
                 ),
             ],
           ),
+          // Alert banner — shown when FCM alert is received
+          if (_activeAlert != null)
+            Positioned(
+              top: 8,
+              left: 0,
+              right: 0,
+              child: AlertBanner(
+                alert: _activeAlert!,
+                onDismiss: () {
+                  setState(() => _activeAlert = null);
+                  _fcm.stopBuzzer();
+                },
+              ),
+            ),
+          // GPS status bar
           Positioned(
             bottom: 16,
             left: 16,
-            right: 16,
+            right: 80,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(

@@ -1,11 +1,14 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/login_screen.dart';
 import 'screens/map_screen.dart';
+import 'services/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // FCM init will be added in Sprint 4 (firebase_messaging setup)
+  await Firebase.initializeApp();
+  await FcmService().init();
   runApp(const XimbraFieldApp());
 }
 

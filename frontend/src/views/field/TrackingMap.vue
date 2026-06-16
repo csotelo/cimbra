@@ -39,8 +39,9 @@
                     Unidades activas ({{ positions.length }})
                 </h3>
                 <div v-for="pos in positions" :key="pos.entity_id"
-                    class="p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm
-                           cursor-pointer hover:border-indigo-400 transition-colors"
+                    class="p-3 rounded-lg bg-white dark:bg-gray-800 border shadow-sm
+                           cursor-pointer transition-colors hover:border-indigo-400"
+                    :class="alertBorderClass(pos)"
                     @click="centerOn(pos)">
                     <div class="flex items-start gap-2">
                         <span class="mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -50,7 +51,16 @@
                             <p v-if="pos.mobile_refuge" class="text-xs text-orange-600 dark:text-orange-400">
                                 Refugio: {{ pos.mobile_refuge.code }} · {{ pos.mobile_refuge.plate }}
                             </p>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            <!-- Alert badge -->
+                            <div v-if="pos.field_alert && pos.field_alert.level > 1"
+                                class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                                :class="alertBadgeClass(pos.field_alert.level)">
+                                ⚡ {{ alertLabel(pos.field_alert.level) }}
+                                <span v-if="pos.field_alert.distance_km">
+                                    · {{ pos.field_alert.distance_km }} km
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 font-mono mt-0.5">
                                 {{ pos.lat.toFixed(5) }}, {{ pos.lon.toFixed(5) }}
                             </p>
                             <p class="text-xs text-gray-400 dark:text-gray-500">{{ formatTs(pos.ts) }}</p>
@@ -72,26 +82,53 @@ import L from "leaflet";
 
 const mapContainer = ref(null);
 let map = null;
-const markers = {};  // entity_id → L.Marker
+const markers = {};
 
 const positions = ref([]);
 const polling = ref(true);
 const error = ref(null);
 let pollTimer = null;
 
-const EMPLOYEE_ICON = L.divIcon({
-    className: "",
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-});
+const ALERT_COLORS = { 4: "#ef4444", 3: "#f97316", 2: "#eab308", 1: null };
+const ALERT_LABELS = { 4: "Alerta Roja", 3: "Alerta Naranja", 2: "Alerta Amarilla", 1: "Sin riesgo" };
 
-const REFUGE_ICON = L.divIcon({
-    className: "",
-    html: `<div style="width:18px;height:18px;border-radius:50%;background:#f97316;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>`,
-    iconSize: [18, 18],
-    iconAnchor: [9, 9],
-});
+function alertLabel(level) { return ALERT_LABELS[level] || "—"; }
+
+function alertBorderClass(pos) {
+    const level = pos.field_alert?.level;
+    if (level >= 4) return "border-red-400 dark:border-red-600";
+    if (level >= 3) return "border-orange-400 dark:border-orange-600";
+    if (level >= 2) return "border-yellow-400 dark:border-yellow-600";
+    return "border-gray-200 dark:border-gray-700";
+}
+
+function alertBadgeClass(level) {
+    if (level >= 4) return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    if (level >= 3) return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400";
+    return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400";
+}
+
+function makeIcon(isRefuge, alertLevel) {
+    const baseColor = isRefuge ? "#f97316" : "#4f46e5";
+    const size = isRefuge ? 18 : 14;
+    const ring = ALERT_COLORS[alertLevel];
+    const ringHtml = ring
+        ? `<div style="position:absolute;top:-5px;left:-5px;width:${size + 10}px;height:${size + 10}px;
+                       border-radius:50%;border:2.5px solid ${ring};
+                       animation:pulse 1.2s ease-in-out infinite;"></div>`
+        : "";
+    return L.divIcon({
+        className: "",
+        html: `<style>@keyframes pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}}</style>
+               <div style="position:relative;width:${size}px;height:${size}px;">
+                   ${ringHtml}
+                   <div style="width:${size}px;height:${size}px;border-radius:50%;background:${baseColor};
+                                border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>
+               </div>`,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+    });
+}
 
 function initMap() {
     map = L.map(mapContainer.value, { center: [-9.19, -75.01], zoom: 6 });
@@ -118,24 +155,22 @@ function updateMarkers(data) {
     for (const pos of data) {
         seen.add(pos.entity_id);
         const latlng = [pos.lat, pos.lon];
-        const icon = pos.mobile_refuge ? REFUGE_ICON : EMPLOYEE_ICON;
-        const popupHtml = buildPopup(pos);
+        const alertLevel = pos.field_alert?.level || 1;
+        const icon = makeIcon(!!pos.mobile_refuge, alertLevel);
+        const popup = buildPopup(pos);
 
         if (markers[pos.entity_id]) {
             markers[pos.entity_id].setLatLng(latlng);
-            markers[pos.entity_id].setPopupContent(popupHtml);
+            markers[pos.entity_id].setIcon(icon);
+            markers[pos.entity_id].setPopupContent(popup);
         } else {
             markers[pos.entity_id] = L.marker(latlng, { icon })
                 .addTo(map)
-                .bindPopup(popupHtml);
+                .bindPopup(popup);
         }
     }
-    // Remove stale markers
     for (const eid of Object.keys(markers)) {
-        if (!seen.has(eid)) {
-            map.removeLayer(markers[eid]);
-            delete markers[eid];
-        }
+        if (!seen.has(eid)) { map.removeLayer(markers[eid]); delete markers[eid]; }
     }
 }
 
@@ -144,7 +179,12 @@ function buildPopup(pos) {
     if (pos.mobile_refuge) {
         html += `<br>Refugio: ${pos.mobile_refuge.code}`;
         if (pos.mobile_refuge.plate) html += ` · ${pos.mobile_refuge.plate}`;
-        html += `<br>Capacidad: ${pos.mobile_refuge.capacity} pers.`;
+    }
+    if (pos.field_alert && pos.field_alert.level > 1) {
+        const color = ALERT_COLORS[pos.field_alert.level] || "#888";
+        html += `<br><span style="color:${color};font-weight:bold">⚡ ${alertLabel(pos.field_alert.level)}</span>`;
+        if (pos.field_alert.distance_km) html += ` (${pos.field_alert.distance_km} km)`;
+        if (pos.field_alert.station) html += `<br>${pos.field_alert.station}`;
     }
     html += `<br><span style="font-size:11px;color:#888">${formatTs(pos.ts)}</span>`;
     return html;
@@ -162,9 +202,7 @@ function formatTs(ts) {
     if (!ts) return "—";
     try {
         return new Date(ts).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    } catch {
-        return ts;
-    }
+    } catch { return ts; }
 }
 
 function startPolling() {
@@ -182,13 +220,6 @@ function togglePolling() {
     polling.value ? stopPolling() : startPolling();
 }
 
-onMounted(() => {
-    initMap();
-    startPolling();
-});
-
-onUnmounted(() => {
-    stopPolling();
-    if (map) { map.remove(); map = null; }
-});
+onMounted(() => { initMap(); startPolling(); });
+onUnmounted(() => { stopPolling(); if (map) { map.remove(); map = null; } });
 </script>

@@ -32,6 +32,14 @@ class Employee(models.Model):
         help_text="Path en MinIO",
     )
     is_active = models.BooleanField(default=True)
+    last_alert_level = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text="Último nivel de alerta enviado por FCM (1=Verde 2=Amarillo 3=Naranja 4=Rojo)",
+    )
+    last_alert_sent_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Momento en que se envió el último push de alerta al dispositivo",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

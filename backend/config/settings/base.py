@@ -212,7 +212,14 @@ CELERY_BEAT_SCHEDULE = {
         "task": "weather.notify_pending_alerts",
         "schedule": 600.0,  # cada 10 minutos
     },
+    "check-field-alerts": {
+        "task": "field.check_field_alerts",
+        "schedule": 60.0,  # cada 60 s — calcula distancias y envía FCM a empleados en zona de riesgo
+    },
 }
+
+# Firebase / FCM — credenciales como JSON inline desde variable de entorno
+FIREBASE_CREDENTIALS_JSON = os.environ.get("FIREBASE_CREDENTIALS_JSON", "")
 
 MAX_TENANTS_PER_USER = 5
 API_TOKEN_EXPIRY_DAYS = 365

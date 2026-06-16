@@ -5,6 +5,44 @@ Versioning: MAJOR.MINOR.PATCH — fix = PATCH, feature = MINOR.
 
 ---
 
+## [0.15.0] - 2026-06-15
+
+### Sprint 4 — Alertas sonoras de campo: FCM push + buzzer Flutter + motor de distancias
+
+#### Backend — motor de alertas de distancia
+- `firebase-admin==6.6.0` añadido a `requirements.txt`
+- `apps/field/fcm.py` — utilidad `send_fcm_push(token, title, body, data)`: inicializa Firebase con `FIREBASE_CREDENTIALS_JSON` desde env, envía push con prioridad alta Android, graceful fallback si no configurado
+- `apps/field/tasks.py` — Celery task `field.check_field_alerts` (cada 60 s):
+  - Lee posiciones actuales desde Redis `tracking:last_position:{tenant_id}`
+  - Calcula distancia Haversine desde cada empleado a cada estación con alerta activa
+  - 0–16 km → Alerta Roja (FCM zumbido continuo)
+  - 16–32 km → Alerta Amarilla (FCM zumbido entrecortado)
+  - Cooldown de 5 min por empleado para evitar spam (verifica `last_alert_sent_at` y nivel)
+  - Escribe nivel de alerta actual en Redis `tracking:field_alert:{employee_id}` (TTL 2 h)
+  - Actualiza `Employee.last_alert_level` + `Employee.last_alert_sent_at` en DB
+- `apps/field/models.py` — campos `last_alert_level` + `last_alert_sent_at` en Employee
+- Migración `field/0004_employee_alert_tracking`
+- `settings/base.py` — `FIREBASE_CREDENTIALS_JSON` desde env, beat schedule `check-field-alerts` cada 60 s
+- `TrackingLiveView` — enriquece cada posición con `field_alert` (level, station, distance_km) desde Redis
+- `.env.example` — `FIREBASE_CREDENTIALS_JSON`, `MQTT_PORT`
+
+#### Frontend — indicadores visuales de alerta
+- `TrackingMap.vue` — anillo pulsante de color alrededor de marcadores según nivel (rojo/naranja/amarillo), badge de alerta en panel lateral, popup con distancia y estación
+- `SafetyMap.vue` — mismo sistema de anillos en posiciones en vivo del mapa de seguridad integrado
+
+#### Móvil Flutter — buzzer de alerta sonora
+- `pubspec.yaml` — add `vibration: ^2.0.0`
+- `services/fcm_service.dart` — inicializa FCM, recibe mensajes foreground/background/terminated, activa buzzer según nivel:
+  - Nivel 4 (Rojo): patrón continuo `[500,200,500,200,500,200]`, se repite cada 8 s
+  - Nivel 3 (Naranja): patrón rápido `[300,400,300,400]`
+  - Nivel 2 (Amarillo): patrón lento `[200,800,200,800]`
+  - Nivel 1: detiene vibración
+- `services/fcm_service.dart` — `AlertBanner` widget: banner rojo/naranja/amarillo con título, descripción y botón de dismiss que también detiene el buzzer
+- `screens/map_screen.dart` — integra FCM stream, muestra AlertBanner en overlay sobre el mapa al recibir push
+- `main.dart` — inicializa Firebase.initializeApp() + FcmService().init() al arrancar
+
+---
+
 ## [0.14.0] - 2026-06-15
 
 ### Sprint 3 — Refugios Fijos y Mapa de Seguridad Integrado

@@ -119,16 +119,25 @@ function levelBg(level) {
     return map[level] || "#f9fafb";
 }
 
-const EMPLOYEE_ICON = L.divIcon({
-    className: "",
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:#4f46e5;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-    iconSize: [14, 14], iconAnchor: [7, 7],
-});
-const REFUGE_MOBILE_ICON = L.divIcon({
-    className: "",
-    html: `<div style="width:18px;height:18px;border-radius:50%;background:#f97316;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
-    iconSize: [18, 18], iconAnchor: [9, 9],
-});
+const ALERT_COLORS = { 4: "#ef4444", 3: "#f97316", 2: "#eab308" };
+
+function makeLiveIcon(isRefuge, alertLevel) {
+    const baseColor = isRefuge ? "#f97316" : "#4f46e5";
+    const size = isRefuge ? 18 : 14;
+    const ring = ALERT_COLORS[alertLevel];
+    const ringHtml = ring
+        ? `<div style="position:absolute;top:-5px;left:-5px;width:${size+10}px;height:${size+10}px;border-radius:50%;border:2.5px solid ${ring};animation:pulse 1.2s ease-in-out infinite;"></div>`
+        : "";
+    return L.divIcon({
+        className: "",
+        html: `<style>@keyframes pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.15)}}</style>
+               <div style="position:relative;width:${size}px;height:${size}px;">
+                   ${ringHtml}
+                   <div style="width:${size}px;height:${size}px;border-radius:50%;background:${baseColor};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>
+               </div>`,
+        iconSize: [size, size], iconAnchor: [size / 2, size / 2],
+    });
+}
 const STATION_ICON = (color) => L.divIcon({
     className: "",
     html: `<div style="width:16px;height:16px;border-radius:3px;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>`,
@@ -220,11 +229,18 @@ function updateLiveMarkers(data) {
     for (const pos of data) {
         seen.add(pos.entity_id);
         const latlng = [pos.lat, pos.lon];
-        const icon = pos.mobile_refuge ? REFUGE_MOBILE_ICON : EMPLOYEE_ICON;
-        const popup = `<strong>${pos.label}</strong>${pos.mobile_refuge ? `<br>${pos.mobile_refuge.code}` : ""}`;
+        const alertLevel = pos.field_alert?.level || 1;
+        const icon = makeLiveIcon(!!pos.mobile_refuge, alertLevel);
+        let popup = `<strong>${pos.label}</strong>${pos.mobile_refuge ? `<br>${pos.mobile_refuge.code}` : ""}`;
+        if (pos.field_alert && pos.field_alert.level > 1) {
+            const c = ALERT_COLORS[pos.field_alert.level] || "#888";
+            popup += `<br><span style="color:${c};font-weight:bold">⚡ Alerta nivel ${pos.field_alert.level}</span>`;
+            if (pos.field_alert.distance_km) popup += ` (${pos.field_alert.distance_km} km)`;
+        }
 
         if (liveMarkers[pos.entity_id]) {
             liveMarkers[pos.entity_id].setLatLng(latlng);
+            liveMarkers[pos.entity_id].setIcon(icon);
             liveMarkers[pos.entity_id].setPopupContent(popup);
         } else {
             liveMarkers[pos.entity_id] = L.marker(latlng, { icon }).addTo(map).bindPopup(popup);
